@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# local secrets and artifacts
+atlas-credentials.env
+localhost_3000_register.*
+
 # debug
 npm-debug.log*
 yarn-debug.log*
