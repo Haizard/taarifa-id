@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "TAARIFA_ID"
+version = "1.0.0"
+id = "artifacts/taarifa-id"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21711
+
+[services.development]
+run = "pnpm --filter @workspace/taarifa-id run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/taarifa-id", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/taarifa-id/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21711"
+BASE_PATH = "/"
