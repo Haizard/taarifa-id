@@ -1,7 +1,10 @@
-import { Link, useLocation } from "wouter";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, User, QrCode, Settings, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSession } from "@/contexts/AuthContext";
+import { useSession } from "next-auth/react";
 
 interface NavItem {
   href: string;
@@ -10,13 +13,13 @@ interface NavItem {
 }
 
 export default function BottomNav() {
-  const [pathname] = useLocation();
-  const { session } = useSession();
+  const pathname = usePathname();
+  const { data: session } = useSession();
 
   if (!session) return null;
 
-  const role = session.user.role;
-  const profileId = session.user.profileId;
+  const role = (session.user as any)?.role;
+  const profileId = (session.user as any)?.profileId;
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Home", icon: Home },
@@ -30,7 +33,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 safe-bottom md:hidden">
       <div
         className="flex items-center justify-around"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -42,7 +45,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 py-3 px-5 text-xs font-medium transition-colors min-w-0 relative",
+                "flex flex-col items-center gap-0.5 py-3 px-5 text-xs font-medium transition-colors min-w-0",
                 isActive
                   ? "text-blue-700 dark:text-blue-400"
                   : "text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400"
@@ -50,7 +53,10 @@ export default function BottomNav() {
             >
               <item.icon
                 size={22}
-                className={cn("transition-transform", isActive && "scale-110")}
+                className={cn(
+                  "transition-transform",
+                  isActive && "scale-110"
+                )}
               />
               <span className="truncate">{item.label}</span>
               {isActive && (

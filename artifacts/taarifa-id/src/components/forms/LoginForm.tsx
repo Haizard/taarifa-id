@@ -1,11 +1,13 @@
+"use client";
+
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { Link } from "wouter";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { useSession } from "@/contexts/AuthContext";
+import Link from "next/link";
 
 interface LoginFormProps {
   isFirstLogin?: boolean;
@@ -13,8 +15,7 @@ interface LoginFormProps {
 }
 
 export default function LoginForm({ isFirstLogin, prefillMobile }: LoginFormProps) {
-  const { login } = useSession();
-  const [, navigate] = useLocation();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [username, setUsername] = useState(prefillMobile || "");
@@ -27,23 +28,29 @@ export default function LoginForm({ isFirstLogin, prefillMobile }: LoginFormProp
     setLoading(true);
 
     try {
-      const result = await login(username, firstLogin ? "firstlogin" : password, firstLogin ? otpCode : undefined);
+      const result = await signIn("credentials", {
+        username,
+        password: firstLogin ? "firstlogin" : password,
+        otpCode: firstLogin ? otpCode : undefined,
+        redirect: false,
+      });
 
-      if (result.error) {
-        toast.error(result.error);
+      if (result?.error) {
+        toast.error("Invalid credentials. Please try again.");
         return;
       }
 
       toast.success("Signed in successfully!");
 
-      // Read role from stored user
-      const stored = localStorage.getItem("tid_user");
-      const user = stored ? JSON.parse(stored) : null;
+      // Route based on role — check session
+      const sessionRes = await fetch("/api/auth/session");
+      const session = await sessionRes.json();
+      const role = session?.user?.role;
 
-      if (user?.role === "system_admin") {
-        navigate("/system-admin");
+      if (role === "system_admin") {
+        router.push("/system-admin");
       } else {
-        navigate("/dashboard");
+        router.push("/dashboard");
       }
     } catch {
       toast.error("Something went wrong.");
@@ -57,6 +64,7 @@ export default function LoginForm({ isFirstLogin, prefillMobile }: LoginFormProp
       onSubmit={handleSubmit}
       className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm space-y-4"
     >
+      {/* RESELLER indicator — shown based on account type after first attempt */}
       <Input
         label="Username, Mobile or Email"
         value={username}

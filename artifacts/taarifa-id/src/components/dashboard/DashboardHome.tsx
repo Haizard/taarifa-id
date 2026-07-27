@@ -1,5 +1,7 @@
-import { Link } from "wouter";
-import type { Session } from "@/contexts/AuthContext";
+"use client";
+
+import Link from "next/link";
+import { Session } from "next-auth";
 import {
   User, QrCode, FileText, Settings, Heart, MapPin,
   AlertCircle, Phone, Briefcase, Shield, ChevronRight,
@@ -10,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface Props {
-  session: Session | null;
+  session: Session;
 }
 
 const profileSections = [
@@ -25,14 +27,14 @@ const profileSections = [
 ];
 
 export default function DashboardHome({ session }: Props) {
-  if (!session) return null;
-  const user = session.user;
+  const user = session.user as any;
   const isActive = user.isAccountActive;
   const accountType = user.accountType;
   const isReseller = accountType !== "Individual";
 
   return (
     <div className="space-y-5">
+      {/* Profile card */}
       <Card>
         <CardContent className="pt-5">
           <div className="flex items-center gap-4">
@@ -41,13 +43,23 @@ export default function DashboardHome({ session }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate">{user.name}</h2>
-                {isReseller && <Badge variant="warning" className="shrink-0">RESELLER</Badge>}
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate">
+                  {user.name}
+                </h2>
+                {isReseller && (
+                  <Badge variant="warning" className="shrink-0">RESELLER</Badge>
+                )}
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 font-mono">{user.profileId}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 font-mono">
+                {user.profileId}
+              </p>
               <div className="flex items-center gap-1.5 mt-1.5">
                 <Badge variant={isActive ? "success" : "destructive"}>
-                  {isActive ? <><CheckCircle size={10} className="mr-1" />Active</> : <><XCircle size={10} className="mr-1" />Inactive</>}
+                  {isActive ? (
+                    <><CheckCircle size={10} className="mr-1" /> Active</>
+                  ) : (
+                    <><XCircle size={10} className="mr-1" /> Inactive</>
+                  )}
                 </Badge>
                 <Badge variant="secondary">{accountType}</Badge>
               </div>
@@ -66,17 +78,24 @@ export default function DashboardHome({ session }: Props) {
         </CardContent>
       </Card>
 
+      {/* Quick actions */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 px-1">Profile Sections</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 px-1">
+          Profile Sections
+        </h3>
         <div className="grid grid-cols-2 gap-3">
           {profileSections.map((item) => (
             <Link key={item.href} href={item.href}>
               <Card className="hover:shadow-md transition-shadow active:scale-[0.98]">
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${item.color}`}><item.icon size={18} /></div>
+                    <div className={`p-2 rounded-xl ${item.color}`}>
+                      <item.icon size={18} />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{item.label}</p>
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {item.label}
+                      </p>
                     </div>
                     <ChevronRight size={14} className="text-gray-400 shrink-0" />
                   </div>
@@ -87,19 +106,28 @@ export default function DashboardHome({ session }: Props) {
         </div>
       </div>
 
+      {/* Admin section */}
       {isReseller && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 px-1">Admin Actions</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 px-1">
+            Admin Actions
+          </h3>
           <Card>
             <CardContent className="pt-5 space-y-3">
               <Link href="/dashboard/sub-accounts">
-                <Button variant="outline" fullWidth className="justify-between">Manage Sub-Accounts <ChevronRight size={16} /></Button>
+                <Button variant="outline" fullWidth className="justify-between">
+                  Manage Sub-Accounts <ChevronRight size={16} />
+                </Button>
               </Link>
               <Link href="/dashboard/sms">
-                <Button variant="outline" fullWidth className="justify-between">Send SMS to Members <ChevronRight size={16} /></Button>
+                <Button variant="outline" fullWidth className="justify-between">
+                  Send SMS to Members <ChevronRight size={16} />
+                </Button>
               </Link>
               <Link href="/dashboard/settings">
-                <Button variant="outline" fullWidth className="justify-between">Organization Settings <ChevronRight size={16} /></Button>
+                <Button variant="outline" fullWidth className="justify-between">
+                  Organization Settings <ChevronRight size={16} />
+                </Button>
               </Link>
             </CardContent>
           </Card>

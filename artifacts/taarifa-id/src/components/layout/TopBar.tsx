@@ -1,7 +1,9 @@
-import { Link } from "wouter";
-import { useSession } from "@/contexts/AuthContext";
-import { Bell, LogOut, ChevronLeft } from "lucide-react";
-import { useLocation } from "wouter";
+"use client";
+
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { Bell, LogOut, Menu, ChevronLeft } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 interface TopBarProps {
@@ -10,24 +12,22 @@ interface TopBarProps {
 }
 
 export default function TopBar({ title, showBack }: TopBarProps) {
-  const { session, logout } = useSession();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_pathname] = useLocation();
+  const { data: session } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
 
   if (!session) return null;
 
   const displayTitle = title || "TAARIFA_ID";
 
   return (
-    <header
-      className="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
-    >
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}>
       <div className="flex items-center justify-between h-14 px-4 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
           {showBack ? (
             <button
-              onClick={() => window.history.back()}
+              onClick={() => router.back()}
               className="p-2 -ml-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Go back"
             >
@@ -40,7 +40,7 @@ export default function TopBar({ title, showBack }: TopBarProps) {
               </div>
             </Link>
           )}
-          <h1 className={cn("font-semibold text-gray-900 dark:text-gray-100 text-base truncate max-w-[180px]")}>
+          <h1 className="font-semibold text-gray-900 dark:text-gray-100 text-base truncate max-w-[180px]">
             {displayTitle}
           </h1>
         </div>
@@ -54,7 +54,7 @@ export default function TopBar({ title, showBack }: TopBarProps) {
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
           </button>
           <button
-            onClick={logout}
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Sign out"
           >

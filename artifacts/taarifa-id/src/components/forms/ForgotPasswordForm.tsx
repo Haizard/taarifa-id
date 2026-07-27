@@ -1,12 +1,14 @@
+"use client";
+
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
 
 export default function ForgotPasswordForm() {
-  const [, navigate] = useLocation();
+  const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -14,7 +16,10 @@ export default function ForgotPasswordForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!identifier.trim()) { toast.error("Please enter your mobile, email or username"); return; }
+    if (!identifier.trim()) {
+      toast.error("Please enter your mobile, email or username");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/forgot-password", {
@@ -22,8 +27,7 @@ export default function ForgotPasswordForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: identifier.trim() }),
       });
-      const data = await res.json() as { maskedMobile?: string };
-      if (!res.ok) { toast.error("User not found"); return; }
+      const data = await res.json();
       setSent(true);
       setMaskedMobile(data.maskedMobile || "");
       toast.success("Reset code sent!");
@@ -49,10 +53,17 @@ export default function ForgotPasswordForm() {
             ) : (
               "your registered mobile number"
             )}
-            . It expires in 10 minutes.
+            . It expires in 15 minutes.
           </p>
         </div>
-        <Button fullWidth onClick={() => navigate(`/reset-password?identifier=${encodeURIComponent(identifier)}`)}>
+        <Button
+          fullWidth
+          onClick={() =>
+            router.push(
+              `/reset-password?identifier=${encodeURIComponent(identifier)}`
+            )
+          }
+        >
           Enter Reset Code
         </Button>
       </div>
@@ -60,7 +71,10 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm space-y-4"
+    >
       <Input
         label="Mobile, Email or Username"
         value={identifier}
@@ -69,7 +83,9 @@ export default function ForgotPasswordForm() {
         placeholder="e.g. 0712345678 or john_doe"
         required
       />
-      <Button type="submit" fullWidth loading={loading}>Send Reset Code</Button>
+      <Button type="submit" fullWidth loading={loading}>
+        Send Reset Code
+      </Button>
     </form>
   );
 }

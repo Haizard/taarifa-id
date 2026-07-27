@@ -1,5 +1,7 @@
-// SessionWrapper is no longer needed — auth is provided by AuthContext (SessionProvider in App.tsx).
-// This file kept as a passthrough for any legacy references.
+"use client";
+
+import { SessionProvider } from "next-auth/react";
+
 export default function SessionWrapper({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <SessionProvider>{children}</SessionProvider>;
 }

@@ -1,4 +1,6 @@
-import { Link } from "wouter";
+"use client";
+
+import Link from "next/link";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +12,7 @@ export default function PublicNav() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-100 dark:border-gray-800">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-blue-700 rounded-xl flex items-center justify-center">
             <span className="text-white text-sm font-bold">TID</span>
@@ -20,14 +23,20 @@ export default function PublicNav() {
           </div>
         </Link>
 
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <a href="/#features" className="text-gray-600 hover:text-blue-700 transition-colors">Features</a>
-          <a href="/#partners" className="text-gray-600 hover:text-blue-700 transition-colors">Partners</a>
-          <a href="/#stats" className="text-gray-600 hover:text-blue-700 transition-colors">Stats</a>
-          <Link href="/register"><Button size="sm">Register</Button></Link>
-          <Link href="/login"><Button size="sm" variant="outline">Login</Button></Link>
+          <Link href="/#features" className="text-gray-600 hover:text-blue-700 transition-colors">Features</Link>
+          <Link href="/#partners" className="text-gray-600 hover:text-blue-700 transition-colors">Partners</Link>
+          <Link href="/#stats" className="text-gray-600 hover:text-blue-700 transition-colors">Stats</Link>
+          <Link href="/register">
+            <Button size="sm">Register</Button>
+          </Link>
+          <Link href="/login">
+            <Button size="sm" variant="outline">Login</Button>
+          </Link>
         </nav>
 
+        {/* Mobile hamburger */}
         <button
           className="md:hidden p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800"
           onClick={() => setOpen(!open)}
@@ -37,14 +46,19 @@ export default function PublicNav() {
         </button>
       </div>
 
+      {/* Mobile dropdown */}
       {open && (
         <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-4 pb-4">
-          <nav className={cn("flex flex-col gap-3 pt-3 text-sm font-medium")}>
-            <a href="/#features" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Features</a>
-            <a href="/#partners" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Partners</a>
-            <a href="/#stats" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Stats</a>
-            <Link href="/register" onClick={() => setOpen(false)}><Button fullWidth>Register</Button></Link>
-            <Link href="/login" onClick={() => setOpen(false)}><Button fullWidth variant="outline">Login</Button></Link>
+          <nav className="flex flex-col gap-3 pt-3 text-sm font-medium">
+            <Link href="/#features" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Features</Link>
+            <Link href="/#partners" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Partners</Link>
+            <Link href="/#stats" onClick={() => setOpen(false)} className="py-2 text-gray-600 hover:text-blue-700">Stats</Link>
+            <Link href="/register" onClick={() => setOpen(false)}>
+              <Button fullWidth>Register</Button>
+            </Link>
+            <Link href="/login" onClick={() => setOpen(false)}>
+              <Button fullWidth variant="outline">Login</Button>
+            </Link>
           </nav>
         </div>
       )}
