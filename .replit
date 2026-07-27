@@ -21,3 +21,9 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+BEEM_SENDER_NAME = "TAARIFAID"
+NEXT_PUBLIC_APP_URL = "https://taarifa-id.replit.app"

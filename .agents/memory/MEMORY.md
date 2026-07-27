@@ -1,0 +1,1 @@
+- [Next.js on Replit pnpm workspace](nextjs-replit.md) — Next.js runs in an artifact with PORT env var; avoid pnpm release-age firewall by using 15.2.x

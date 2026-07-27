@@ -1,11 +1,12 @@
 import LoginForm from "@/components/forms/LoginForm";
 import Link from "next/link";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { firstLogin?: string; mobile?: string };
+  searchParams: Promise<{ firstLogin?: string; mobile?: string }>;
 }) {
+  const params = await searchParams;
   return (
     <div className="min-h-dvh bg-gradient-to-br from-blue-50 to-white dark:from-gray-950 dark:to-gray-900 flex flex-col">
       <header className="px-4 py-4">
@@ -28,8 +29,8 @@ export default function LoginPage({
             </p>
           </div>
           <LoginForm
-            isFirstLogin={searchParams.firstLogin === "1"}
-            prefillMobile={searchParams.mobile}
+            isFirstLogin={params.firstLogin === "1"}
+            prefillMobile={params.mobile}
           />
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
             Don&apos;t have an account?{" "}

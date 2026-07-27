@@ -1,11 +1,12 @@
 import ResetPasswordForm from "@/components/forms/ResetPasswordForm";
 import Link from "next/link";
 
-export default function ResetPasswordPage({
+export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: { identifier?: string };
+  searchParams: Promise<{ identifier?: string }>;
 }) {
+  const params = await searchParams;
   return (
     <div className="min-h-dvh bg-gradient-to-br from-blue-50 to-white dark:from-gray-950 dark:to-gray-900 flex flex-col">
       <header className="px-4 py-4">
@@ -30,7 +31,7 @@ export default function ResetPasswordPage({
               Enter the code sent to your mobile and your new password
             </p>
           </div>
-          <ResetPasswordForm prefillIdentifier={searchParams.identifier} />
+          <ResetPasswordForm prefillIdentifier={params.identifier} />
         </div>
       </main>
     </div>

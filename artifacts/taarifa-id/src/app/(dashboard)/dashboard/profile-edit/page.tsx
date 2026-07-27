@@ -6,12 +6,13 @@ import ProfileEditForm from "@/components/forms/ProfileEditForm";
 export default async function ProfileEditPage({
   searchParams,
 }: {
-  searchParams: { section?: string };
+  searchParams: Promise<{ section?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const section = searchParams.section || "basic";
+  const params = await searchParams;
+  const section = params.section || "basic";
 
   return (
     <AppShell title="Edit Profile" showBack>
