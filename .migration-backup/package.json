@@ -1,0 +1,50 @@
+{
+  "name": "taarifa-id",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.3",
+    "@hookform/resolvers": "^5.5.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/qrcode": "^1.5.6",
+    "bcryptjs": "^3.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.27.0",
+    "mongoose": "^9.8.0",
+    "nanoid": "^6.0.0",
+    "next": "16.2.12",
+    "next-auth": "^5.0.0-beta.32",
+    "next-pwa": "^5.6.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.83.0",
+    "react-hot-toast": "^2.6.0",
+    "react-qr-code": "^2.2.0",
+    "react-to-print": "^3.3.0",
+    "recharts": "^3.10.1",
+    "swiper": "^14.0.6",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
