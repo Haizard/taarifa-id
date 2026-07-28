@@ -4,7 +4,6 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 
 export default function ChangePasswordForm() {
@@ -56,70 +55,78 @@ export default function ChangePasswordForm() {
 
   if (done) {
     return (
-      <Card>
-        <CardContent className="pt-8 pb-8 text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto">
-            <ShieldCheck size={32} className="text-green-600" />
-          </div>
-          <p className="font-semibold text-gray-900 dark:text-gray-100">Password Changed</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Your password has been updated successfully. Use it on your next login.
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-8 text-center space-y-5">
+        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 rounded-2xl flex items-center justify-center mx-auto">
+          <ShieldCheck size={32} className="text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-white text-lg">Password updated</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Your new password is active. Use it on your next login.
           </p>
-          <Button variant="outline" onClick={() => setDone(false)}>
-            Change Again
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+        <Button variant="outline" onClick={() => setDone(false)}>
+          Change again
+        </Button>
+      </div>
     );
   }
 
+  const toggleIcon = (
+    <button
+      type="button"
+      onClick={() => setShowPwd(!showPwd)}
+      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+    >
+      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+    </button>
+  );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock size={16} /> Change Password
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-4">
-          <Input
-            label="Current Password"
-            type={showPwd ? "text" : "password"}
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-7 space-y-4"
+    >
+      <div className="pb-2 border-b border-gray-100 dark:border-gray-800 mb-2">
+        <div className="flex items-center gap-2">
+          <Lock size={16} className="text-blue-700 dark:text-blue-400" />
+          <h3 className="font-bold text-gray-900 dark:text-white text-base">Change Password</h3>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Choose a strong password at least 8 characters long.
+        </p>
+      </div>
 
-          <Input
-            label="New Password"
-            type={showPwd ? "text" : "password"}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            hint="Minimum 8 characters"
-            required
-          />
+      <Input
+        label="Current Password"
+        type={showPwd ? "text" : "password"}
+        value={currentPassword}
+        onChange={(e) => setCurrentPassword(e.target.value)}
+        leftIcon={<Lock size={16} />}
+        rightIcon={toggleIcon}
+        required
+      />
 
-          <Input
-            label="Confirm New Password"
-            type={showPwd ? "text" : "password"}
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
+      <Input
+        label="New Password"
+        type={showPwd ? "text" : "password"}
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        leftIcon={<Lock size={16} />}
+        hint="Minimum 8 characters"
+        required
+      />
 
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 dark:text-gray-400">
-            <input
-              type="checkbox"
-              checked={showPwd}
-              onChange={(e) => setShowPwd(e.target.checked)}
-              className="rounded"
-            />
-            Show passwords
-          </label>
-        </CardContent>
-      </Card>
+      <Input
+        label="Confirm New Password"
+        type={showPwd ? "text" : "password"}
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        leftIcon={<Lock size={16} />}
+        required
+      />
 
-      <Button type="submit" fullWidth loading={loading}>
+      <Button type="submit" fullWidth loading={loading} size="lg">
         <Lock size={16} /> Update Password
       </Button>
     </form>

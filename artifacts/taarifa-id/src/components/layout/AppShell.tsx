@@ -16,18 +16,16 @@ export default function AppShell({ children, title, showBack, className, noPaddi
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-gray-950 flex flex-col">
       <TopBar title={title} showBack={showBack} />
-
       <main
         className={cn(
-          "flex-1 w-full max-w-5xl mx-auto",
-          !noPadding && "px-4 py-4",
-          "pb-24 md:pb-6", // space for bottom nav on mobile
+          "flex-1 w-full max-w-2xl mx-auto",
+          !noPadding && "px-4 py-5",
+          "pb-28 md:pb-8",
           className
         )}
       >
         <div className="page-transition">{children}</div>
       </main>
-
       <BottomNav />
     </div>
   );

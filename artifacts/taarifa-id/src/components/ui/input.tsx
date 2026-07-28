@@ -16,7 +16,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
-      <div className="w-full space-y-1">
+      <div className="w-full space-y-1.5">
         {label && (
           <label
             htmlFor={inputId}
@@ -25,9 +25,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {label}
           </label>
         )}
-        <div className="relative">
+        <div className="relative group">
           {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
               {leftIcon}
             </div>
           )}
@@ -35,28 +35,35 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             type={type}
             className={cn(
-              "flex h-11 w-full rounded-xl border bg-white px-4 py-2 text-sm text-gray-900",
-              "placeholder:text-gray-400",
-              "border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20",
-              "dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-600",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              "transition-colors outline-none",
+              "flex h-11 w-full rounded-xl border-2 bg-white px-4 py-2.5 text-sm text-gray-900",
+              "placeholder:text-gray-400 transition-all duration-200",
+              "border-gray-200 focus:border-blue-600 focus:outline-none",
+              "hover:border-gray-300",
+              "dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500",
+              "dark:focus:border-blue-400 dark:hover:border-gray-600",
+              "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50",
               leftIcon && "pl-10",
               rightIcon && "pr-10",
-              error && "border-red-400 focus:border-red-500 focus:ring-red-500/20",
+              error && "border-red-400 focus:border-red-500 dark:border-red-500",
               className
             )}
             ref={ref}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
               {rightIcon}
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-500">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        {hint && !error && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+        )}
+        {error && (
+          <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+            <span>⚠</span> {error}
+          </p>
+        )}
       </div>
     );
   }

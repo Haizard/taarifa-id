@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Lock, User, KeyRound } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
@@ -43,7 +43,7 @@ export default function ResetPasswordForm({ prefillIdentifier }: Props) {
         toast.error(data.message || "Reset failed");
         return;
       }
-      toast.success("Password reset! Please sign in with your new password.");
+      toast.success("Password reset! Sign in with your new password.");
       router.push("/login");
     } catch {
       toast.error("Something went wrong.");
@@ -53,61 +53,68 @@ export default function ResetPasswordForm({ prefillIdentifier }: Props) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm space-y-4"
-    >
-      <Input
-        label="Mobile, Email or Username"
-        value={identifier}
-        onChange={(e) => setIdentifier(e.target.value)}
-        leftIcon={<User size={16} />}
-        placeholder="Same as you entered before"
-        required
-      />
+    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-7 space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Mobile, Email or Username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          leftIcon={<User size={16} />}
+          placeholder="Same as you entered before"
+          required
+        />
 
-      <Input
-        label="Reset Code (6 digits)"
-        value={resetToken}
-        onChange={(e) => setResetToken(e.target.value.replace(/\D/g, ""))}
-        leftIcon={<Lock size={16} />}
-        placeholder="Enter the 6-digit code"
-        maxLength={6}
-        required
-      />
+        <Input
+          label="Reset Code"
+          value={resetToken}
+          onChange={(e) => setResetToken(e.target.value.replace(/\D/g, ""))}
+          leftIcon={<KeyRound size={16} />}
+          placeholder="6-digit code from your SMS"
+          maxLength={6}
+          inputMode="numeric"
+          hint="Check your SMS inbox"
+          required
+        />
 
-      <Input
-        label="New Password"
-        type={showPwd ? "text" : "password"}
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        rightIcon={
-          <button type="button" onClick={() => setShowPwd(!showPwd)}>
-            {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        }
-        hint="At least 8 characters"
-        required
-      />
+        <Input
+          label="New Password"
+          type={showPwd ? "text" : "password"}
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          leftIcon={<Lock size={16} />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowPwd(!showPwd)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          }
+          hint="Minimum 8 characters"
+          required
+        />
 
-      <Input
-        label="Confirm New Password"
-        type={showPwd ? "text" : "password"}
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        required
-      />
+        <Input
+          label="Confirm New Password"
+          type={showPwd ? "text" : "password"}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          leftIcon={<Lock size={16} />}
+          required
+        />
 
-      <Button type="submit" fullWidth loading={loading}>
-        Reset Password
-      </Button>
+        <Button type="submit" fullWidth loading={loading} size="lg">
+          Reset Password
+        </Button>
+      </form>
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-gray-500 dark:text-gray-400">
         Didn&apos;t receive a code?{" "}
-        <Link href="/forgot-password" className="text-blue-700 hover:underline">
-          Try again
+        <Link href="/forgot-password" className="text-blue-700 dark:text-blue-400 font-semibold hover:underline">
+          Request again
         </Link>
       </p>
-    </form>
+    </div>
   );
 }

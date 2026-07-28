@@ -23,21 +23,19 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1e40af",
+  themeColor: "#1e3a8a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="sw" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -54,9 +52,12 @@ export default function RootLayout({
             toastOptions={{
               duration: 4000,
               style: {
+                fontFamily: "'Inter', sans-serif",
                 borderRadius: "12px",
                 padding: "12px 16px",
                 fontSize: "14px",
+                fontWeight: "500",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
               },
             }}
           />

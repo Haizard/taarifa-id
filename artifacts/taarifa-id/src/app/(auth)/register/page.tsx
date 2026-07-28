@@ -3,34 +3,33 @@ import Link from "next/link";
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-blue-50 to-white dark:from-gray-950 dark:to-gray-900 flex flex-col">
-      {/* Header */}
-      <header className="px-4 py-4">
-        <Link href="/" className="flex items-center gap-2 w-fit">
-          <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center">
-            <span className="text-white text-xs font-bold">TID</span>
+    <div className="min-h-dvh bg-gray-50 dark:bg-gray-950 flex flex-col">
+      <header className="px-6 py-5 flex items-center justify-between max-w-3xl mx-auto w-full">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl flex items-center justify-center shadow-[0_2px_8px_rgba(30,58,138,0.35)]">
+            <span className="text-white text-xs font-black">TID</span>
           </div>
-          <span className="font-bold text-gray-900 dark:text-gray-100">
-            TAARIFA<span className="text-blue-700">_ID</span>
+          <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">
+            TAARIFA<span className="text-blue-700 dark:text-blue-400">_ID</span>
           </span>
+        </Link>
+        <Link
+          href="/login"
+          className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          Already have an account? <span className="text-blue-700 dark:text-blue-400 font-semibold">Sign in</span>
         </Link>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-4 pb-8">
+      <main className="flex-1 flex items-start justify-center px-4 py-8">
         <div className="w-full max-w-lg">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Create your account</h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white">Create your account</h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
               Get your digital identity profile and QR code
             </p>
           </div>
           <RegisterForm />
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
-            Already have an account?{" "}
-            <Link href="/login" className="text-blue-700 font-medium hover:underline">
-              Sign in
-            </Link>
-          </p>
         </div>
       </main>
     </div>
