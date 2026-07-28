@@ -82,8 +82,14 @@ export default function RegisterForm() {
         toast.error(json.message || "Registration failed");
         return;
       }
-      toast.success("Account created! Check your phone for a verification code.");
-      router.push(`/login?firstLogin=1&mobile=${encodeURIComponent(data.mobile)}`);
+      const isDev = process.env.NODE_ENV === "development";
+      if (isDev) {
+        toast.success("Account created! Sign in with your password.");
+        router.push("/login");
+      } else {
+        toast.success("Account created! Check your phone for a verification code.");
+        router.push(`/login?firstLogin=1&mobile=${encodeURIComponent(data.mobile)}`);
+      }
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {

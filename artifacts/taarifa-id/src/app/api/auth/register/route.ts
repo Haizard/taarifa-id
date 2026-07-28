@@ -55,7 +55,9 @@ export async function POST(req: NextRequest) {
       profileId = generateProfileId();
     }
 
-    // Generate OTP
+    const isDev = process.env.NODE_ENV === "development";
+
+    // Generate OTP (skipped in development)
     const { code: otpCode, expiry: otpExpiry } = generateOTP();
 
     // Determine role
@@ -81,9 +83,9 @@ export async function POST(req: NextRequest) {
       nidaNumber,
       passportNumber,
       profileId,
-      isFirstLogin: true,
-      otpCode,
-      otpExpiry,
+      isFirstLogin: !isDev,
+      otpCode: isDev ? undefined : otpCode,
+      otpExpiry: isDev ? undefined : otpExpiry,
       expireDate: getAnnualExpiry(),
     });
 
@@ -100,9 +102,11 @@ export async function POST(req: NextRequest) {
       nationality,
     });
 
-    // Send OTP SMS
-    await sendOTPSMS(mobile, otpCode);
-    await sendWelcomeSMS(mobile, firstName, profileId);
+    // Send OTP SMS (skipped in development)
+    if (!isDev) {
+      await sendOTPSMS(mobile, otpCode);
+      await sendWelcomeSMS(mobile, firstName, profileId);
+    }
 
     return NextResponse.json(
       { message: "Account created successfully", profileId },

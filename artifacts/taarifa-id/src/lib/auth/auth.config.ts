@@ -27,8 +27,10 @@ export const authConfig: NextAuthConfig = {
 
         if (!user || !user.isActive) return null;
 
-        // First login: use OTP
-        if (user.isFirstLogin) {
+        const isDev = process.env.NODE_ENV === "development";
+
+        // First login: use OTP (skipped in development)
+        if (user.isFirstLogin && !isDev) {
           if (!credentials.otpCode) return null;
           if (
             user.otpCode !== credentials.otpCode ||
@@ -43,6 +45,11 @@ export const authConfig: NextAuthConfig = {
           user.isFirstLogin = false;
           await user.save();
         } else {
+          // Normal login (or dev bypass of OTP)
+          if (user.isFirstLogin && isDev) {
+            user.isFirstLogin = false;
+            await user.save();
+          }
           const isValid = await bcrypt.compare(
             credentials.password as string,
             user.password
