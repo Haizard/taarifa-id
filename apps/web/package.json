@@ -26,13 +26,22 @@
     "@hookform/resolvers": "^5.5.7",
     "zod": "catalog:",
     "react-hot-toast": "^2.6.0",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "@taarifa/db": "workspace:*",
+    "bcryptjs": "catalog:",
+    "jsonwebtoken": "catalog:",
+    "nanoid": "catalog:",
+    "drizzle-orm": "catalog:",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@types/qrcode": "catalog:",
+    "@types/bcryptjs": "catalog:",
+    "@types/jsonwebtoken": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "catalog:"
   }
 }

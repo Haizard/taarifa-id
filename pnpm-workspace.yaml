@@ -23,6 +23,8 @@ catalog:
   'zod': ^3.25.76
   'qrcode': ^1.5.4
   'nanoid': ^6.0.0
+  'jsonwebtoken': ^9.0.2
+  '@types/jsonwebtoken': ^9.0.10
   'next': 15.2.9
   'react': ^19.1.0
   'react-dom': ^19.1.0

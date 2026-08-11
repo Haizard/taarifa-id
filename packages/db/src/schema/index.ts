@@ -474,22 +474,26 @@ export const accountsRelations = relations(accounts, ({ many, one }) => ({
   sessions: many(sessions),
   personProfiles: many(personProfiles),
   payments: many(payments),
-  profileStatus: one(profileStatus),
+  profileStatus: one(profileStatus, { fields: [accounts.id], references: [profileStatus.account_id] }),
   printableCards: many(printableCards),
 }));
 
 export const personProfilesRelations = relations(personProfiles, ({ one, many }) => ({
   owner: one(accounts, { fields: [personProfiles.owner_account_id], references: [accounts.id] }),
   mobileNumbers: many(mobileNumbers),
-  health: one(basicHealthDetails),
-  residence: one(residences),
+  health: one(basicHealthDetails, { fields: [personProfiles.id], references: [basicHealthDetails.person_profile_id] }),
+  residence: one(residences, { fields: [personProfiles.id], references: [residences.person_profile_id] }),
   desperateConditions: many(desperateConditions),
   emergencyContacts: many(emergencyContacts),
-  employment: one(employmentDetails),
+  employment: one(employmentDetails, { fields: [personProfiles.id], references: [employmentDetails.person_profile_id] }),
 }));
 
 export const employmentRelations = relations(employmentDetails, ({ one, many }) => ({
   profile: one(personProfiles, { fields: [employmentDetails.person_profile_id], references: [personProfiles.id] }),
   employers: many(employers),
   supervisors: many(supervisors),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  account: one(accounts, { fields: [payments.account_id], references: [accounts.id] }),
 }));

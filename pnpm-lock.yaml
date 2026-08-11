@@ -36,6 +36,9 @@ catalogs:
     '@types/bcryptjs':
       specifier: ^2.4.6
       version: 2.4.6
+    '@types/jsonwebtoken':
+      specifier: ^9.0.10
+      version: 9.0.10
     '@types/node':
       specifier: ^25.3.3
       version: 25.9.5
@@ -66,6 +69,9 @@ catalogs:
     drizzle-orm:
       specifier: ^0.45.2
       version: 0.45.2
+    jsonwebtoken:
+      specifier: ^9.0.2
+      version: 9.0.3
     nanoid:
       specifier: ^6.0.0
       version: 6.0.1
@@ -213,24 +219,42 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.5.7
         version: 5.7.1(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(class-transformer@0.5.1)(class-validator@0.14.4)(react-hook-form@7.85.0(react@19.2.8))(zod@3.25.76)
+      '@taarifa/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@tailwindcss/postcss':
         specifier: 'catalog:'
         version: 4.3.3
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.101.4(react@19.2.8)
+      bcryptjs:
+        specifier: 'catalog:'
+        version: 3.0.3
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@types/pg@8.21.0)(pg@8.23.0)
       framer-motion:
         specifier: ^12.42.2
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      jsonwebtoken:
+        specifier: 'catalog:'
+        version: 9.0.3
       lucide-react:
         specifier: ^0.545.0
         version: 0.545.0(react@19.2.8)
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       next:
         specifier: 'catalog:'
         version: 15.2.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.0
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
@@ -265,9 +289,18 @@ importers:
         specifier: 'catalog:'
         version: 5.0.14(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
+      '@types/bcryptjs':
+        specifier: 'catalog:'
+        version: 2.4.6
+      '@types/jsonwebtoken':
+        specifier: 'catalog:'
+        version: 9.0.10
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.21.0
       '@types/qrcode':
         specifier: 'catalog:'
         version: 1.5.6
@@ -4234,7 +4267,7 @@ snapshots:
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
-      '@types/node': 25.9.5
+      '@types/node': 26.2.0
 
   '@types/ms@2.1.0': {}
 
