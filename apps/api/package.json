@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @taarifa/db run build && nest build",
+    "build": "pnpm --filter @taarifa/db run build && node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@nestjs/common": "catalog:",

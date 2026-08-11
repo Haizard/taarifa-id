@@ -10,8 +10,8 @@
     "./schema": "./dist/schema/index.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.build.json",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "generate": "drizzle-kit generate",
     "push": "drizzle-kit push",
     "seed": "tsx src/seed.ts"

@@ -1,7 +1,8 @@
 import * as bcrypt from 'bcryptjs';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { createPoolConfig, databaseUrl, * as schema } from '@taarifa/db';
+import { createPoolConfig, databaseUrl } from '@taarifa/db';
+import * as schema from '@taarifa/db/schema';
 
 const username = process.env.ADMIN_USERNAME ?? 'systemadmin';
 const password = process.env.ADMIN_PASSWORD ?? 'admin1234';
