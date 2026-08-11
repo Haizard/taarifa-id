@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
-import * as schema from '@taarifa/db/schema';
+import * as schema from '@taarifa/db';
 import { DbService } from '../db/db.service';
 import { QrcodeService } from '../qrcode/qrcode.service';
 

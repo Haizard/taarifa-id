@@ -405,6 +405,7 @@ function CreateMemberForm({ accountType, onCreate }: { accountType: string; onCr
     birthdate: '',
     nationality: 'Tanzanian',
     nida_number: '',
+    passport_number: '',
   });
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 

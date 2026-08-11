@@ -118,7 +118,7 @@ export default function PublicProfilePage() {
                 <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-accent-danger">
                   <Phone size={14} /> Emergency contacts
                 </div>
-                {main.emergency_contacts.map((c: any, i: number) => (
+                {main?.emergency_contacts?.map((c: any, i: number) => (
                   <div key={i} className="flex justify-between py-1 text-[14px]">
                     <span className="text-ink-primary">{c.full_name}</span>
                     <span className="text-ink-secondary">{c.mobile_1 ?? c.mobile_2 ?? ''}</span>
@@ -132,7 +132,7 @@ export default function PublicProfilePage() {
                 <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-accent-warning">
                   <HeartPulse size={14} /> Desperate conditions
                 </div>
-                {main.desperate_conditions.map((c: any, i: number) => (
+                {main?.desperate_conditions?.map((c: any, i: number) => (
                   <div key={i} className="py-1 text-[14px] text-ink-primary">{c.acute_condition_code}</div>
                 ))}
               </div>

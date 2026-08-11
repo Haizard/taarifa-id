@@ -213,6 +213,7 @@ export class AuthService {
       role: account.role,
       account_type: account.account_type,
       profile_id: account.profile_id,
+      mobile_number: account.mobile_number,
     };
     const access_token = this.jwt.sign(payload, { secret: process.env.JWT_SECRET ?? 'dev_secret', expiresIn: '15m' });
     const refresh_token = this.jwt.sign({ sub: account.id }, { secret: process.env.JWT_REFRESH_SECRET ?? 'dev_refresh', expiresIn: '30d' });

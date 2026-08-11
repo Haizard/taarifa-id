@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  allowedDevOrigins: ['.monkeycode-ai.live'],
 };
 
 export default nextConfig;

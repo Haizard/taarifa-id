@@ -9,6 +9,7 @@ export interface SessionUser {
   role: string;
   account_type: string;
   profile_id: string;
+  mobile_number?: string;
 }
 
 interface AuthState {

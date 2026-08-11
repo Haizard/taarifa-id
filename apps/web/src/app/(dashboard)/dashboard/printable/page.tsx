@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { QRCodeSVG } from 'react-qr-code';
+import { QRCode } from 'react-qr-code';
 import { Printer, UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
@@ -33,8 +33,6 @@ export default function PrintablePage() {
   };
 
   const FIELD_KEYS = ['first_name', 'last_name', 'gender', 'birthdate', 'nationality', 'fluent_language', 'blood_group', 'region', 'district', 'ward'];
-
-  const cardUrl = user?.profile_id ? `${window.location.origin}/profile/${user?.profile_id}` : '';
 
   return (
     <div>
@@ -78,7 +76,7 @@ export default function PrintablePage() {
                 </div>
               </div>
               <div className="rounded-xl bg-white p-1.5">
-                {cardUrl && <QRCodeSVG value={cardUrl} size={72} />}
+                {cardUrl && <QRCode value={cardUrl} size={72} />}
               </div>
             </div>
             <div className="mt-6 rounded-xl bg-white/15 px-4 py-3 text-center font-mono text-[16px] font-semibold tracking-widest">
