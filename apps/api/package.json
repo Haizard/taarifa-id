@@ -1,0 +1,42 @@
+{
+  "name": "@taarifa/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "@nestjs/jwt": "catalog:",
+    "@nestjs/passport": "catalog:",
+    "@nestjs/config": "catalog:",
+    "@nestjs/swagger": "catalog:",
+    "@taarifa/db": "workspace:*",
+    "bcryptjs": "catalog:",
+    "class-transformer": "catalog:",
+    "class-validator": "catalog:",
+    "drizzle-orm": "catalog:",
+    "passport": "catalog:",
+    "passport-jwt": "catalog:",
+    "qrcode": "catalog:",
+    "nanoid": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/bcryptjs": "catalog:",
+    "@types/express": "^5.0.0",
+    "@types/node": "catalog:",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/qrcode": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:"
+  }
+}

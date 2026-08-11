@@ -1,16 +1,16 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
+  "name": "taarifa-id",
+  "version": "0.1.0",
+  "private": true,
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
-  },
-  "private": true,
-  "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "dev": "pnpm run dev:api & pnpm run dev:web",
+    "dev:api": "pnpm --filter @taarifa/api run start:dev",
+    "dev:web": "pnpm --filter @taarifa/web run dev",
+    "db:push": "pnpm --filter @taarifa/db run push",
+    "db:seed": "pnpm --filter @taarifa/db run seed"
   },
   "devDependencies": {
     "prettier": "^3.9.5",

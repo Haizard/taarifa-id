@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-base: #f2f4f8;
+  --color-glass: rgba(255, 255, 255, 0.55);
+  --color-glass-strong: rgba(255, 255, 255, 0.72);
+  --color-glass-subtle: rgba(255, 255, 255, 0.35);
+  --color-glass-border: rgba(255, 255, 255, 0.6);
+  --color-accent-primary: #3b82f6;
+  --color-accent-secondary: #8b5cf6;
+  --color-accent-success: #34c759;
+  --color-accent-warning: #ff9f0a;
+  --color-accent-danger: #ff3b30;
+  --color-ink-primary: #1c1c1e;
+  --color-ink-secondary: #6b7280;
+  --color-ink-tertiary: #9ca3af;
+  --color-separator: rgba(60, 60, 67, 0.15);
+  --radius-card: 20px;
+  --radius-button: 14px;
+  --radius-sheet: 28px;
+  --shadow-glass: 0 8px 32px rgba(31, 41, 55, 0.1);
+  --shadow-sheet: 0 16px 48px rgba(31, 41, 55, 0.16);
+  --font-sans:
+    -apple-system, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family:
+    -apple-system, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Segoe UI', sans-serif;
+  color: #1c1c1e;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-bg {
+  background-color: #f2f4f8;
+  background-image:
+    radial-gradient(circle at 12% 8%, rgba(234, 241, 251, 0.9), transparent 40%),
+    radial-gradient(circle at 88% 92%, rgba(247, 239, 251, 0.9), transparent 42%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.glass {
+  background-color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 32px rgba(31, 41, 55, 0.1);
+  border-radius: 20px;
+}
+
+.glass-strong {
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 16px 48px rgba(31, 41, 55, 0.16);
+  border-radius: 28px;
+}
+
+.glass-subtle {
+  background-color: rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+}
+
+.hairline {
+  border-bottom: 1px solid rgba(60, 60, 67, 0.15);
+}
+
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  .glass {
+    background-color: rgba(255, 255, 255, 0.85);
+  }
+  .glass-strong {
+    background-color: rgba(255, 255, 255, 0.92);
+  }
+}
+
+@keyframes push-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.push-in {
+  animation: push-in 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.btn-scale:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+  transition:
+    transform 0.12s ease-out,
+    opacity 0.12s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .push-in {
+    animation: none;
+  }
+}

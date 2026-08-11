@@ -1,0 +1,38 @@
+{
+  "name": "@taarifa/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "zustand": "catalog:",
+    "clsx": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "qrcode": "catalog:",
+    "react-qr-code": "^2.2.0",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^0.545.0",
+    "react-hook-form": "^7.83.0",
+    "@hookform/resolvers": "^5.5.7",
+    "zod": "catalog:",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/qrcode": "catalog:",
+    "typescript": "catalog:"
+  }
+}
