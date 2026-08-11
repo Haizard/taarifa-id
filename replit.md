@@ -13,9 +13,11 @@ packages/db     Drizzle ORM schema + migrations + seed
 - PostgreSQL running locally (dev DB: `taarifa_id`)
 - pnpm installed
 
-## Dev database
+## Database
 
-Connection: `postgresql://taarifa:taarifa_dev_2026@localhost:5432/taarifa_id`
+The app uses PostgreSQL via Drizzle. If `DATABASE_URL` is set, it is used as the explicit connection. Otherwise it automatically uses the Supabase session pooler from the root `.env`; Supabase connections enable SSL automatically. The standalone `supabase_db_password` is applied in memory so a rotated password does not leave the URLs' embedded password stale.
+
+To use another database locally, set `DATABASE_URL` in `.env` (and set `DATABASE_SSL=true` if required).
 
 Start Postgres (Debian/Ubuntu 15):
 

@@ -1,6 +1,6 @@
-import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { createPoolConfig } from './env.js';
 import {
   lovAcuteConditions,
   lovEmploymentTypes,
@@ -10,10 +10,7 @@ import {
   fieldVisibility,
 } from './schema/index.js';
 
-const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ?? 'postgresql://taarifa:taarifa_dev_2026@localhost:5432/taarifa_id',
-});
+const pool = new Pool(createPoolConfig());
 
 const db = drizzle(pool);
 

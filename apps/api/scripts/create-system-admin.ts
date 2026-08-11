@@ -1,16 +1,13 @@
 import * as bcrypt from 'bcryptjs';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from '@taarifa/db';
+import { createPoolConfig, databaseUrl, * as schema } from '@taarifa/db';
 
 const username = process.env.ADMIN_USERNAME ?? 'systemadmin';
 const password = process.env.ADMIN_PASSWORD ?? 'admin1234';
 const mobile = process.env.ADMIN_MOBILE ?? '255700000000';
 
-const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ?? 'postgresql://taarifa:taarifa_dev_2026@localhost:5432/taarifa_id',
-});
+const pool = new Pool(createPoolConfig(databaseUrl));
 
 const db = drizzle(pool, { schema });
 

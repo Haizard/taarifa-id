@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "pnpm --filter @taarifa/db run build && pnpm run typecheck && pnpm --filter @taarifa/api run build && pnpm --filter @taarifa/web run build",
     "typecheck": "pnpm -r --if-present run typecheck",
     "dev": "pnpm run dev:api & pnpm run dev:web",
     "dev:api": "pnpm --filter @taarifa/api run start:dev",
