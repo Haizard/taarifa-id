@@ -50,3 +50,6 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 autoInstallPeers: true
+
+allowBuilds:
+  sharp: true

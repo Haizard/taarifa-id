@@ -4,16 +4,48 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "build": "pnpm --filter @taarifa/db run build && pnpm run typecheck && pnpm --filter @taarifa/api run build && pnpm --filter @taarifa/web run build",
-    "typecheck": "pnpm -r --if-present run typecheck",
-    "dev": "pnpm run dev:api & pnpm run dev:web",
+    "build": "pnpm --filter @taarifa/db run build && next build",
+    "typecheck": "tsc --noEmit && pnpm --filter @taarifa/db run typecheck && pnpm --filter @taarifa/api run typecheck",
+    "dev": "next dev",
     "dev:api": "pnpm --filter @taarifa/api run start:dev",
-    "dev:web": "pnpm --filter @taarifa/web run dev",
     "db:push": "pnpm --filter @taarifa/db run push",
     "db:seed": "pnpm --filter @taarifa/db run seed"
   },
+  "dependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@tailwindcss/postcss": "catalog:",
+    "@taarifa/db": "workspace:*",
+    "bcryptjs": "catalog:",
+    "clsx": "catalog:",
+    "drizzle-orm": "catalog:",
+    "framer-motion": "^12.42.2",
+    "jsonwebtoken": "catalog:",
+    "lucide-react": "^0.545.0",
+    "nanoid": "catalog:",
+    "next": "catalog:",
+    "pg": "catalog:",
+    "qrcode": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "^7.83.0",
+    "react-hot-toast": "^2.6.0",
+    "react-qr-code": "^2.2.0",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "zod": "catalog:",
+    "zustand": "catalog:"
+  },
   "devDependencies": {
+    "@hookform/resolvers": "^5.5.7",
+    "@types/bcryptjs": "catalog:",
+    "@types/jsonwebtoken": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "@types/qrcode": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "prettier": "^3.9.5",
-    "typescript": "~5.9.3"
+    "typescript": "catalog:"
   }
 }

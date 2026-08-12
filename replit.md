@@ -1,10 +1,11 @@
 # TAARIFA ID — Runbook
 
-Monorepo: pnpm workspaces with a Next.js full-stack app (frontend + API route handlers) and a shared Drizzle schema. The NestJS API has been replaced by Next.js route handlers under `apps/web/src/app/api/**`, so a **single Vercel deployment** serves both the UI and the API (full serverless).
+Monorepo: pnpm workspaces with a Next.js full-stack app (frontend + API route handlers) at the repo root and a shared Drizzle schema. The NestJS API has been replaced by Next.js route handlers under `src/app/api/**`, so a **single Vercel deployment** serves both the UI and the API (full serverless).
 
 ```
-apps/web        Next.js 15 (single deployment: UI + API route handlers)
+. (repo root)   Next.js 15 app (single deployment: UI + API route handlers)
 packages/db     Drizzle ORM schema + migrations + seed
+apps/api        Legacy NestJS reference (not deployed)
 ```
 
 ## Prerequisites
@@ -30,7 +31,7 @@ pg_ctlcluster 15 main start
 pnpm install
 ```
 
-`packages/db` has a `prepare` script so its `dist` is built automatically during install (required by `apps/web` and the API).
+`packages/db` has a `prepare` script so its `dist` is built automatically during install (required by the root app and the API).
 
 ## Push schema + seed
 
@@ -51,18 +52,18 @@ ADMIN_USERNAME=systemadmin ADMIN_PASSWORD=admin1234 npx tsx scripts/create-syste
 ## Run locally
 
 ```bash
-pnpm dev:web        # web + API on http://localhost:3000
+pnpm dev        # web + API on http://localhost:3000
 ```
 
 The API is served by Next.js route handlers under `/api` (same origin as the UI) — no separate API server and no rewrites needed.
 
-Required env (Vercel dashboard or local `.env`): `DATABASE_URL` (or `supabase_session_pooler`), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `WEB_URL`. Development fallbacks exist in code for all of these. See `apps/web/.env.example`.
+Required env (Vercel dashboard or local `.env`): `DATABASE_URL` (or `supabase_session_pooler`), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `WEB_URL`. Development fallbacks exist in code for all of these. See `.env.example`.
 
 ## API conventions
 
 - All routes are under `/api`, e.g. `POST /api/auth/login`.
 - Auth routes and the `public` module are public; everything else requires a Bearer JWT.
-- Roles: `individual`, `admin`, `user`, `system_admin`. Admin/system-admin-only actions are role-guarded in the route table (`apps/web/src/lib/server/router.ts`).
+- Roles: `individual`, `admin`, `user`, `system_admin`. Admin/system-admin-only actions are role-guarded in the route table (`src/lib/server/router.ts`).
 - Mock SMS: OTP codes are returned as `sms_code_dev` in dev responses (no real SMS gateway).
 - Mock payments: payments confirm inline (serverless-safe) and activate the profile immediately.
 
@@ -96,6 +97,6 @@ Regular accounts register via the app; first login uses the SMS code shown in th
 ## Scripts
 
 ```bash
-pnpm run build          # typecheck + build all packages
+pnpm run build          # build @taarifa/db then next build
 pnpm run typecheck
 ```
