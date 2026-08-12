@@ -14,7 +14,7 @@ export function GlassButton({
 }) {
   const styles = {
     primary:
-      'bg-accent-primary text-white shadow-glass bg-gradient-to-b from-white/25 to-transparent border border-white/20',
+      'bg-gradient-to-br from-accent-primary to-accent-secondary text-white shadow-glass border border-white/25',
     secondary: 'glass text-accent-primary',
     destructive: 'bg-glass text-accent-danger border border-glass-border',
     ghost: 'bg-transparent text-accent-primary hover:bg-glass-subtle',

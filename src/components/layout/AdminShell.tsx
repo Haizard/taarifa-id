@@ -67,6 +67,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 </div>
                 <span className="text-[17px] font-bold text-ink-primary">TAARIFA Admin</span>
               </div>
+              <button
+                onClick={() => {
+                  clear();
+                  router.push('/');
+                }}
+                aria-label="Sign out"
+                className="flex items-center gap-1.5 rounded-button px-3 py-2 text-[14px] font-medium text-accent-danger active:bg-glass-subtle"
+              >
+                <LogOut size={18} />
+                Sign out
+              </button>
             </div>
           </div>
           <main className="px-4 pb-32 pt-6 sm:px-6 lg:px-10 lg:pb-12 lg:py-8">{children}</main>

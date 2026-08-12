@@ -36,7 +36,7 @@ export default function Home() {
     api
       .get<Record<string, number>>('/public/stats')
       .then((d) => setCounts(d))
-      .catch(() => setCounts({ individual: 128, family: 34, school: 12, business: 25, institution: 6 }));
+      .catch(() => setCounts(null));
     const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4000);
     return () => clearInterval(t);
   }, []);

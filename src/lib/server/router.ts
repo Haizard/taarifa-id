@@ -8,6 +8,7 @@ import * as paymentsService from './services/payments';
 import * as smsService from './services/sms';
 import * as qrcodeService from './services/qrcode';
 import * as lookupsService from './services/lookups';
+import * as printableService from './services/printable';
 import * as systemAdminService from './services/system-admin';
 import * as publicService from './services/public';
 
@@ -80,6 +81,10 @@ const routes: Route[] = [
       qr_data_url: qrDataUrl,
     }));
   } },
+
+  // printable card
+  { method: 'GET', segments: ['printable', 'fields'], handler: (c) => printableService.getFields(c.user!.sub) },
+  { method: 'PUT', segments: ['printable', 'fields'], handler: (c) => printableService.setFields(c.user!.sub, c.body) },
 
   // lookups
   { method: 'GET', segments: ['lookups'], public: true, handler: () => lookupsService.all() },

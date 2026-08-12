@@ -20,12 +20,29 @@ export default function PrintablePage() {
     if (user?.profile_id) setCardUrl(`${window.location.origin}/profile/${user.profile_id}`);
   }, [user]);
 
+  useEffect(() => {
+    api
+      .get<{ included_fields: string[] }>('/printable/fields')
+      .then((d) => setSelectedFields(d.included_fields ?? []))
+      .catch(() => {});
+  }, []);
+
   const { data: profiles } = useQuery({ queryKey: ['profiles', user?.sub], queryFn: () => api.get('/profiles'), enabled: !!user });
 
   const current = profiles?.find((p: any) => p.id === selectedProfileId) ?? profiles?.[0];
 
+  const saveFields = (fields: string[]) => {
+    api
+      .put('/printable/fields', { included_fields: fields })
+      .catch(() => toast.error('Failed to save card visibility settings'));
+  };
+
   const toggleField = (k: string) =>
-    setSelectedFields((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
+    setSelectedFields((s) => {
+      const next = s.includes(k) ? s.filter((x) => x !== k) : [...s, k];
+      saveFields(next);
+      return next;
+    });
 
   const handlePrint = () => {
     toast.success('Opening print dialog…');
@@ -33,6 +50,29 @@ export default function PrintablePage() {
   };
 
   const FIELD_KEYS = ['first_name', 'last_name', 'gender', 'birthdate', 'nationality', 'fluent_language', 'blood_group', 'region', 'district', 'ward'];
+
+  const FIELD_LABELS: Record<string, string> = {
+    first_name: 'First name',
+    last_name: 'Last name',
+    gender: 'Gender',
+    birthdate: 'Birth year',
+    nationality: 'Nationality',
+    fluent_language: 'Language',
+    blood_group: 'Blood group',
+    region: 'Region',
+    district: 'District',
+    ward: 'Ward',
+  };
+
+  const fieldValue = (p: any, k: string): string | null => {
+    if (!p) return null;
+    if (k === 'blood_group') return p.health?.blood_group ?? null;
+    if (k === 'region' || k === 'district' || k === 'ward') return p.residence?.[k] ?? null;
+    if (k === 'birthdate' && p.birthdate) return String(new Date(p.birthdate).getFullYear());
+    return p[k] ?? null;
+  };
+
+  const optionalFields = selectedFields.filter((k) => k !== 'first_name' && k !== 'last_name');
 
   return (
     <div>
@@ -60,7 +100,7 @@ export default function PrintablePage() {
 
       <SectionLabel>Card preview</SectionLabel>
       <div className="flex justify-center">
-        <div className="relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}>
+        <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/10" />
           <div className="relative text-white">
             <div className="flex items-start justify-between">
@@ -82,11 +122,16 @@ export default function PrintablePage() {
             <div className="mt-6 rounded-xl bg-white/15 px-4 py-3 text-center font-mono text-[16px] font-semibold tracking-widest">
               {user?.profile_id}
             </div>
-            <div className="mt-4 flex justify-between text-[12px] text-white/90">
-              <span>{current?.gender}</span>
-              {current?.birthdate && <span>{new Date(current.birthdate).getFullYear()}</span>}
-              <span>{current?.nationality}</span>
-            </div>
+            {optionalFields.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-white/90">
+                {optionalFields.map((k) => (
+                  <div key={k} className="flex justify-between gap-2">
+                    <span className="text-white/60">{FIELD_LABELS[k]}</span>
+                    <span className="truncate font-medium capitalize">{fieldValue(current, k) ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
