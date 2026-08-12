@@ -23,7 +23,8 @@
     "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "generate": "drizzle-kit generate",
     "push": "drizzle-kit push",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",

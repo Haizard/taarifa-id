@@ -9,7 +9,8 @@
     "dev": "next dev",
     "dev:api": "pnpm --filter @taarifa/api run start:dev",
     "db:push": "pnpm --filter @taarifa/db run push",
-    "db:seed": "pnpm --filter @taarifa/db run seed"
+    "db:seed": "pnpm --filter @taarifa/db run seed",
+    "db:demo": "pnpm --filter @taarifa/db run demo"
   },
   "dependencies": {
     "@tanstack/react-query": "catalog:",

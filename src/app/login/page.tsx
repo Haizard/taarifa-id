@@ -79,6 +79,42 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+
+      <div className="mt-6 w-full max-w-md">
+        <div className="glass-subtle p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[13px] font-semibold uppercase tracking-wide text-ink-secondary">Demo accounts</span>
+            <span className="rounded-full bg-accent-primary/15 px-2 py-0.5 text-[11px] font-medium text-accent-primary">Shared password: demo1234</span>
+          </div>
+          <p className="mb-2 text-[12px] text-ink-tertiary">Tap a username to fill it in, then log in with the shared password.</p>
+          <div className="grid grid-cols-1 gap-1">
+            {[
+              { u: 'demo.systemadmin', label: 'System admin console' },
+              { u: 'demo.individual', label: 'Individual' },
+              { u: 'demo.family', label: 'Family (reseller)' },
+              { u: 'demo.school', label: 'School (reseller)' },
+              { u: 'demo.business', label: 'Business (reseller)' },
+              { u: 'demo.institution', label: 'Institution (reseller)' },
+              { u: 'member.family', label: 'Family member (user)' },
+              { u: 'member.school', label: 'School member (user)' },
+              { u: 'member.business', label: 'Business employee (user)' },
+              { u: 'member.institution', label: 'Institution staff (user)' },
+            ].map((d) => (
+              <button
+                key={d.u}
+                onClick={() => {
+                  setUsername(d.u);
+                  setPassword('demo1234');
+                }}
+                className="flex items-center justify-between rounded-xl px-3 py-1.5 text-left transition-colors hover:bg-accent-primary/10"
+              >
+                <span className="font-mono text-[13px] text-accent-primary">{d.u}</span>
+                <span className="text-[12px] text-ink-tertiary">{d.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
