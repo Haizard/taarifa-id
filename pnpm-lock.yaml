@@ -338,6 +338,9 @@ importers:
       '@types/pg':
         specifier: 'catalog:'
         version: 8.21.0
+      bcryptjs:
+        specifier: 'catalog:'
+        version: 3.0.3
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

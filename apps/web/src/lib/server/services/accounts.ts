@@ -114,21 +114,45 @@ export async function moveAccount(accountId: string, dto: MoveAccountDto) {
   return { message: `Account moved to ${dto.target_scheme} scheme`, profile_id: mover.profile_id };
 }
 
+async function entityIdFor(accountType: string, accountId: string) {
+  if (accountType === 'family') {
+    const f = await db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
+    return f?.id ?? null;
+  }
+  if (accountType === 'school') {
+    const s = await db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
+    return s?.id ?? null;
+  }
+  if (accountType === 'business') {
+    const b = await db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
+    return b?.id ?? null;
+  }
+  if (accountType === 'institution') {
+    const i = await db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
+    return i?.id ?? null;
+  }
+  return null;
+}
+
 async function removeMemberLinks(accountType: string, accountId: string, profileId: string) {
+  const entityId = await entityIdFor(accountType, accountId);
+  if (entityId === null) return;
   const byProfile = (t: any) => eq(t.person_profile_id, profileId);
   if (accountType === 'family')
-    await db.delete(schema.familyMembers).where(and(eq(schema.familyMembers.family_id, accountId), byProfile(schema.familyMembers)));
+    await db.delete(schema.familyMembers).where(and(eq(schema.familyMembers.family_id, entityId), byProfile(schema.familyMembers)));
   if (accountType === 'school')
-    await db.delete(schema.schoolMembers).where(and(eq(schema.schoolMembers.school_id, accountId), byProfile(schema.schoolMembers)));
+    await db.delete(schema.schoolMembers).where(and(eq(schema.schoolMembers.school_id, entityId), byProfile(schema.schoolMembers)));
   if (accountType === 'business')
-    await db.delete(schema.businessMembers).where(and(eq(schema.businessMembers.business_id, accountId), byProfile(schema.businessMembers)));
+    await db.delete(schema.businessMembers).where(and(eq(schema.businessMembers.business_id, entityId), byProfile(schema.businessMembers)));
   if (accountType === 'institution')
-    await db.delete(schema.institutionMembers).where(and(eq(schema.institutionMembers.institution_id, accountId), byProfile(schema.institutionMembers)));
+    await db.delete(schema.institutionMembers).where(and(eq(schema.institutionMembers.institution_id, entityId), byProfile(schema.institutionMembers)));
 }
 
 async function addMemberLink(accountType: string, accountId: string, profileId: string) {
-  if (accountType === 'family') await db.insert(schema.familyMembers).values({ family_id: accountId, person_profile_id: profileId, member_role: 'adult' });
-  if (accountType === 'school') await db.insert(schema.schoolMembers).values({ school_id: accountId, person_profile_id: profileId, beneficiary_type: 'employee' });
-  if (accountType === 'business') await db.insert(schema.businessMembers).values({ business_id: accountId, person_profile_id: profileId });
-  if (accountType === 'institution') await db.insert(schema.institutionMembers).values({ institution_id: accountId, person_profile_id: profileId });
+  const entityId = await entityIdFor(accountType, accountId);
+  if (entityId === null) return;
+  if (accountType === 'family') await db.insert(schema.familyMembers).values({ family_id: entityId, person_profile_id: profileId, member_role: 'adult' });
+  if (accountType === 'school') await db.insert(schema.schoolMembers).values({ school_id: entityId, person_profile_id: profileId, beneficiary_type: 'employee' });
+  if (accountType === 'business') await db.insert(schema.businessMembers).values({ business_id: entityId, person_profile_id: profileId });
+  if (accountType === 'institution') await db.insert(schema.institutionMembers).values({ institution_id: entityId, person_profile_id: profileId });
 }

@@ -54,19 +54,48 @@ export async function createMember(accountId: string, dto: CreatePersonProfileDt
     })
     .returning();
 
-  await linkMember(owner.account_type, owner.id, profile.id, memberType);
+  await linkMember(owner, profile.id, memberType);
   return profile;
 }
 
-async function linkMember(accountType: string, accountId: string, profileId: string, memberType: string) {
-  if (accountType === 'family') {
-    await db.insert(schema.familyMembers).values({ family_id: accountId, person_profile_id: profileId, member_role: memberType === 'underage' ? 'underage' : 'adult' });
-  } else if (accountType === 'school') {
-    await db.insert(schema.schoolMembers).values({ school_id: accountId, person_profile_id: profileId, beneficiary_type: memberType === 'student' ? 'student' : 'employee' });
-  } else if (accountType === 'business') {
-    await db.insert(schema.businessMembers).values({ business_id: accountId, person_profile_id: profileId });
-  } else if (accountType === 'institution') {
-    await db.insert(schema.institutionMembers).values({ institution_id: accountId, person_profile_id: profileId });
+async function entityIdFor(account: any) {
+  switch (account.account_type) {
+    case 'family': {
+      const f = await db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
+      if (!f) throw badRequest('Create your family details first before adding members');
+      return f.id;
+    }
+    case 'school': {
+      const s = await db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
+      if (!s) throw badRequest('Create your school details first before adding members');
+      return s.id;
+    }
+    case 'business': {
+      const b = await db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
+      if (!b) throw badRequest('Create your business details first before adding members');
+      return b.id;
+    }
+    case 'institution': {
+      const i = await db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
+      if (!i) throw badRequest('Create your institution details first before adding members');
+      return i.id;
+    }
+    default:
+      return null;
+  }
+}
+
+async function linkMember(owner: any, profileId: string, memberType: string) {
+  const entityId = await entityIdFor(owner);
+  if (entityId === null) return;
+  if (owner.account_type === 'family') {
+    await db.insert(schema.familyMembers).values({ family_id: entityId, person_profile_id: profileId, member_role: memberType === 'underage' ? 'underage' : 'adult' });
+  } else if (owner.account_type === 'school') {
+    await db.insert(schema.schoolMembers).values({ school_id: entityId, person_profile_id: profileId, beneficiary_type: memberType === 'student' ? 'student' : 'employee' });
+  } else if (owner.account_type === 'business') {
+    await db.insert(schema.businessMembers).values({ business_id: entityId, person_profile_id: profileId });
+  } else if (owner.account_type === 'institution') {
+    await db.insert(schema.institutionMembers).values({ institution_id: entityId, person_profile_id: profileId });
   }
 }
 

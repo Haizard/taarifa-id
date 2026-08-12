@@ -497,3 +497,49 @@ export const employmentRelations = relations(employmentDetails, ({ one, many }) 
 export const paymentsRelations = relations(payments, ({ one }) => ({
   account: one(accounts, { fields: [payments.account_id], references: [accounts.id] }),
 }));
+
+export const authCodesRelations = relations(authCodes, ({ one }) => ({
+  account: one(accounts, { fields: [authCodes.account_id], references: [accounts.id] }),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  account: one(accounts, { fields: [sessions.account_id], references: [accounts.id] }),
+}));
+
+export const mobileNumbersRelations = relations(mobileNumbers, ({ one }) => ({
+  profile: one(personProfiles, { fields: [mobileNumbers.person_profile_id], references: [personProfiles.id] }),
+}));
+
+export const desperateConditionsRelations = relations(desperateConditions, ({ one }) => ({
+  profile: one(personProfiles, { fields: [desperateConditions.person_profile_id], references: [personProfiles.id] }),
+}));
+
+export const emergencyContactsRelations = relations(emergencyContacts, ({ one }) => ({
+  profile: one(personProfiles, { fields: [emergencyContacts.person_profile_id], references: [personProfiles.id] }),
+}));
+
+export const employersRelations = relations(employers, ({ one }) => ({
+  employmentDetail: one(employmentDetails, { fields: [employers.employment_detail_id], references: [employmentDetails.id] }),
+}));
+
+export const supervisorsRelations = relations(supervisors, ({ one }) => ({
+  employmentDetail: one(employmentDetails, { fields: [supervisors.employment_detail_id], references: [employmentDetails.id] }),
+}));
+
+export const familiesRelations = relations(families, ({ one, many }) => ({
+  account: one(accounts, { fields: [families.account_id], references: [accounts.id] }),
+  doctors: many(familyDoctors),
+  links: many(familyLinks),
+}));
+
+export const printableCardsRelations = relations(printableCards, ({ one }) => ({
+  account: one(accounts, { fields: [printableCards.account_id], references: [accounts.id] }),
+}));
+
+export const familyDoctorsRelations = relations(familyDoctors, ({ one }) => ({
+  family: one(families, { fields: [familyDoctors.family_id], references: [families.id] }),
+}));
+
+export const familyLinksRelations = relations(familyLinks, ({ one }) => ({
+  family: one(families, { fields: [familyLinks.family_id], references: [families.id] }),
+}));

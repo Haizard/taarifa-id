@@ -1,10 +1,9 @@
 # TAARIFA ID — Runbook
 
-Monorepo: pnpm workspaces with a Next.js frontend, NestJS API, and shared Drizzle schema.
+Monorepo: pnpm workspaces with a Next.js full-stack app (frontend + API route handlers) and a shared Drizzle schema. The NestJS API has been replaced by Next.js route handlers under `apps/web/src/app/api/**`, so a **single Vercel deployment** serves both the UI and the API (full serverless).
 
 ```
-apps/web        Next.js 15 (port 3000, exposed for preview)
-apps/api        NestJS 11 (port 4000, proxied via /api rewrites)
+apps/web        Next.js 15 (single deployment: UI + API route handlers)
 packages/db     Drizzle ORM schema + migrations + seed
 ```
 
@@ -15,7 +14,7 @@ packages/db     Drizzle ORM schema + migrations + seed
 
 ## Database
 
-The app uses PostgreSQL via Drizzle. If `DATABASE_URL` is set, it is used as the explicit connection. Otherwise it automatically uses the Supabase session pooler from the root `.env`; Supabase connections enable SSL automatically. The standalone `supabase_db_password` is applied in memory so a rotated password does not leave the URLs' embedded password stale.
+The app uses PostgreSQL via Drizzle. If `DATABASE_URL` is set, it is used as the explicit connection. Otherwise it automatically uses the Supabase session pooler from the project `.env`; Supabase connections enable SSL automatically. The standalone `supabase_db_password` is applied in memory so a rotated password does not leave the URLs' embedded password stale.
 
 To use another database locally, set `DATABASE_URL` in `.env` (and set `DATABASE_SSL=true` if required).
 
@@ -31,6 +30,8 @@ pg_ctlcluster 15 main start
 pnpm install
 ```
 
+`packages/db` has a `prepare` script so its `dist` is built automatically during install (required by `apps/web` and the API).
+
 ## Push schema + seed
 
 ```bash
@@ -41,7 +42,7 @@ pnpm db:seed        # LOV values + field visibility defaults
 ## Create a system admin
 
 ```bash
-cd apps/api
+cd packages/db
 ADMIN_USERNAME=systemadmin ADMIN_PASSWORD=admin1234 npx tsx scripts/create-system-admin.ts
 ```
 
@@ -50,27 +51,20 @@ ADMIN_USERNAME=systemadmin ADMIN_PASSWORD=admin1234 npx tsx scripts/create-syste
 ## Run locally
 
 ```bash
-pnpm dev            # starts API (4000) and web (3000) together
+pnpm dev:web        # web + API on http://localhost:3000
 ```
 
-Or separately:
+The API is served by Next.js route handlers under `/api` (same origin as the UI) — no separate API server and no rewrites needed.
 
-```bash
-pnpm dev:api        # API on http://localhost:4000/api
-pnpm dev:web        # web on http://localhost:3000
-```
-
-The web dev server rewrites `/api/*` to the API server, so the browser only talks to port 3000 (single exposed port for preview).
-
-Required env for the API: `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `PORT`. Development fallbacks exist in code for all of these.
+Required env (Vercel dashboard or local `.env`): `DATABASE_URL` (or `supabase_session_pooler`), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `WEB_URL`. Development fallbacks exist in code for all of these. See `apps/web/.env.example`.
 
 ## API conventions
 
-- All routes are under `/api` (global prefix), e.g. `POST /api/auth/login`.
-- Auth routes and the `public` module are marked `@Public()`; everything else requires a Bearer JWT.
-- Roles: `individual`, `admin`, `user`, `system_admin`. Admin-only actions use `@Roles()`.
+- All routes are under `/api`, e.g. `POST /api/auth/login`.
+- Auth routes and the `public` module are public; everything else requires a Bearer JWT.
+- Roles: `individual`, `admin`, `user`, `system_admin`. Admin/system-admin-only actions are role-guarded in the route table (`apps/web/src/lib/server/router.ts`).
 - Mock SMS: OTP codes are returned as `sms_code_dev` in dev responses (no real SMS gateway).
-- Mock payments: payments auto-confirm after ~1.5s and activate the profile.
+- Mock payments: payments confirm inline (serverless-safe) and activate the profile immediately.
 
 ### Endpoint map
 
@@ -78,7 +72,7 @@ Required env for the API: `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `P
 | --- | --- |
 | auth | `POST /auth/register`, `first-login`, `login`, `refresh`, `logout`, `forgot-password`, `reset-password`, `change-password`, `GET /auth/me` |
 | accounts | `GET /accounts/me`, `GET|POST /accounts/sub-accounts`, `PATCH /accounts/:id/lock\|unlock`, `POST /accounts/reset-password`, `POST /accounts/move` |
-| profiles | `GET /profiles`, `GET /profiles/entity`, `POST /profiles/members`, `PUT /profiles/:id`, `PUT /profiles/:id/sub-forms`, `GET /profiles/:id` |
+| profiles | `GET /profiles`, `GET /profiles/entity`, `GET|POST /profiles/members`, `PUT /profiles/entity`, `GET|PUT /profiles/:id`, `PUT /profiles/:id/sub-forms` |
 | payments | `POST /payments`, `GET /payments/history`, `GET /payments/status` |
 | qrcode | `GET /qrcode/:profileId` |
 | lookups | `GET /lookups` |
