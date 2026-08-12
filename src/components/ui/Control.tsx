@@ -12,14 +12,14 @@ export function SegmentedControl<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('glass flex rounded-button p-1', className)}>
+    <div className={cn('glass no-scrollbar flex overflow-x-auto rounded-button p-1', className)}>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'btn-scale flex-1 rounded-[10px] px-3 py-2 text-[15px] font-medium transition-colors',
+            'btn-scale shrink-0 whitespace-nowrap rounded-[10px] px-3 py-2 text-[15px] font-medium transition-colors',
             value === opt.value ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-secondary',
           )}
         >

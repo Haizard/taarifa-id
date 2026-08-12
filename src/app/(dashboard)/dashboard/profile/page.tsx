@@ -90,7 +90,7 @@ export default function ProfileEditor() {
 
       <SectionLabel>Person profiles</SectionLabel>
       {profiles?.length ? (
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
+        <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-2">
           {profiles.map((p: any) => (
             <button
               key={p.id}

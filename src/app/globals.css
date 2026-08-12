@@ -108,8 +108,59 @@ body {
     opacity 0.12s ease-out;
 }
 
+@keyframes pwa-float-shake {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  30% {
+    transform: translate(0, -6px) rotate(0);
+  }
+  55% {
+    transform: translate(0, -2px) rotate(0);
+  }
+  72% {
+    transform: translate(0, 0) rotate(0);
+  }
+  75%,
+  95% {
+    transform: translate(-5px, -2px) rotate(-4deg);
+  }
+  78%,
+  98% {
+    transform: translate(5px, -2px) rotate(4deg);
+  }
+  81% {
+    transform: translate(-3px, -2px) rotate(-2deg);
+  }
+  84% {
+    transform: translate(3px, -2px) rotate(2deg);
+  }
+  87% {
+    transform: translate(-1px, -2px) rotate(-1deg);
+  }
+  90% {
+    transform: translate(1px, -2px) rotate(1deg);
+  }
+}
+
+.pwa-install-btn {
+  animation: pwa-float-shake 4s ease-in-out infinite;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .push-in {
+    animation: none;
+  }
+  .pwa-install-btn {
     animation: none;
   }
 }

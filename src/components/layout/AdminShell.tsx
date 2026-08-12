@@ -68,24 +68,29 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <span className="text-[17px] font-bold text-ink-primary">TAARIFA Admin</span>
               </div>
             </div>
-            <div className="mt-3 flex gap-2 overflow-x-auto">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'shrink-0 rounded-button px-3 py-2 text-[13px] font-medium',
-                    pathname === item.href ? 'bg-accent-primary text-white' : 'glass text-ink-secondary',
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
           </div>
-          <main className="px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
+          <main className="px-4 pb-32 pt-6 sm:px-6 lg:px-10 lg:pb-12 lg:py-8">{children}</main>
         </div>
       </div>
+
+      {/* Mobile bottom tab bar */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
+        <div className="glass-strong mx-auto flex max-w-md items-center justify-around px-2 py-2">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'btn-scale flex flex-col items-center gap-1 rounded-button px-3 py-2',
+                pathname === item.href ? 'text-accent-primary' : 'text-ink-secondary',
+              )}
+            >
+              <item.icon size={24} strokeWidth={pathname === item.href ? 2.5 : 1.8} />
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
