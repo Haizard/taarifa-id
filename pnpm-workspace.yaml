@@ -52,4 +52,6 @@ onlyBuiltDependencies:
 autoInstallPeers: true
 
 allowBuilds:
+  '@scarf/scarf': set this to true or false
+  esbuild: set this to true or false
   sharp: true
