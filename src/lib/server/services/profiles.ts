@@ -230,11 +230,12 @@ export async function upsertSubForms(accountId: string, profileId: string, dto: 
 export async function getEntityDetails(accountId: string) {
   const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
   if (!account) throw notFound('Account not found');
+  const parentAccountId = account.parent_account_id ?? accountId;
   switch (account.account_type) {
-    case 'family': return db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId), with: { doctors: true, links: true } });
-    case 'school': return db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
-    case 'business': return db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
-    case 'institution': return db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
+    case 'family': return db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, parentAccountId), with: { doctors: true, links: true } }) ?? null;
+    case 'school': return db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, parentAccountId) }) ?? null;
+    case 'business': return db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, parentAccountId) }) ?? null;
+    case 'institution': return db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, parentAccountId) }) ?? null;
     default: return null;
   }
 }
