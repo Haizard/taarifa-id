@@ -21,21 +21,21 @@ export default function AdminDashboard() {
   return (
     <div>
       <LargeTitleHeader title="Dashboard" subtitle="Platform overview" />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard tone="blue" icon={<Users size={22} />} value={counts.totalAccounts ?? 0} label="Total accounts" />
         <StatCard tone="green" icon={<CheckCircle2 size={22} />} value={counts.active ?? 0} label="Active" />
         <StatCard tone="red" icon={<AlertTriangle size={22} />} value={counts.expired ?? 0} label="Expired profiles" />
         <StatCard tone="yellow" icon={<CreditCard size={22} />} value={data?.paymentsToday ?? 0} label="Payments today" />
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="mt-8 grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-5">
         {Object.entries(TYPE_COLORS).map(([type, { icon, label, tone }]) => (
-          <div key={type} className="glass flex flex-col items-center p-4 text-center">
-            <div className={cn('mb-3 flex h-11 w-11 items-center justify-center rounded-full', ACCENT_CHIP[tone])}>
+          <div key={type} className="glass flex min-w-0 flex-col items-center p-4 text-center">
+            <div className={cn('mb-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full', ACCENT_CHIP[tone])}>
               {icon}
             </div>
-            <div className="text-[28px] font-bold text-ink-primary">{counts[type] ?? 0}</div>
-            <div className="mt-1 text-[13px] text-ink-secondary">{label}</div>
+            <div className="break-all text-[28px] font-bold text-ink-primary">{counts[type] ?? 0}</div>
+            <div className="mt-1 break-words text-[13px] text-ink-secondary">{label}</div>
           </div>
         ))}
       </div>

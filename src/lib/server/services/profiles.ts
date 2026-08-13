@@ -240,42 +240,84 @@ export async function getEntityDetails(accountId: string) {
   }
 }
 
+const ENTITY_FIELDS: Record<string, string[]> = {
+  family: [
+    'family_name', 'family_pic_url', 'region', 'district', 'ward', 'local_authority_name',
+    'street', 'extra_physical_details', 'emergency_contact_1', 'emergency_contact_2',
+    'neighborhood_friend_name', 'neighborhood_friend_contacts',
+  ],
+  school: [
+    'school_name', 'registration_number', 'ownership', 'school_logo_url', 'region', 'district',
+    'ward', 'local_authority_name', 'extra_notes', 'school_contacts', 'manager_contacts',
+  ],
+  business: [
+    'business_name', 'dealership', 'tin_number', 'business_logo_url', 'region', 'district',
+    'ward', 'local_authority_name', 'extra_notes', 'business_contacts', 'manager_contacts',
+  ],
+  institution: [
+    'institution_name', 'dealership', 'tin_number', 'institution_logo_url', 'region', 'district',
+    'ward', 'local_authority_name', 'extra_notes', 'institution_contacts', 'manager_contacts',
+  ],
+};
+
+function sanitizeEntityDto(type: string, dto: Record<string, unknown>): Record<string, unknown> {
+  const allowed = new Set(ENTITY_FIELDS[type] ?? []);
+  const clean: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(dto)) {
+    if (allowed.has(key) && value !== undefined) clean[key] = value;
+  }
+  if (type === 'family' && dto.extra_notes !== undefined && clean.extra_physical_details === undefined) {
+    clean.extra_physical_details = dto.extra_notes;
+  }
+  if (type === 'school' && dto.contacts !== undefined && clean.school_contacts === undefined) {
+    clean.school_contacts = dto.contacts;
+  }
+  if (type === 'business' && dto.contacts !== undefined && clean.business_contacts === undefined) {
+    clean.business_contacts = dto.contacts;
+  }
+  if (type === 'institution' && dto.contacts !== undefined && clean.institution_contacts === undefined) {
+    clean.institution_contacts = dto.contacts;
+  }
+  return clean;
+}
+
 export async function upsertEntityDetails(accountId: string, dto: any) {
   const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
   if (!account) throw notFound('Account not found');
   const type = account.account_type;
+  const data = sanitizeEntityDto(type, dto);
 
   if (type === 'family') {
     const existing = await db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
     if (existing) {
-      await db.update(schema.families).set(dto).where(eq(schema.families.id, existing.id));
+      await db.update(schema.families).set(data).where(eq(schema.families.id, existing.id));
       return db.query.families.findFirst({ where: (t, { eq }) => eq(t.id, existing.id) });
     }
-    return db.insert(schema.families).values({ account_id: accountId, family_name: dto.family_name ?? 'Family', ...dto }).returning();
+    return db.insert(schema.families).values({ account_id: accountId, family_name: (data.family_name as string) ?? 'Family', ...data }).returning();
   }
   if (type === 'school') {
     const existing = await db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
     if (existing) {
-      await db.update(schema.schools).set(dto).where(eq(schema.schools.id, existing.id));
+      await db.update(schema.schools).set(data).where(eq(schema.schools.id, existing.id));
       return db.query.schools.findFirst({ where: (t, { eq }) => eq(t.id, existing.id) });
     }
-    return db.insert(schema.schools).values({ account_id: accountId, school_name: dto.school_name ?? 'School', ...dto }).returning();
+    return db.insert(schema.schools).values({ account_id: accountId, school_name: (data.school_name as string) ?? 'School', ...data }).returning();
   }
   if (type === 'business') {
     const existing = await db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
     if (existing) {
-      await db.update(schema.businesses).set(dto).where(eq(schema.businesses.id, existing.id));
+      await db.update(schema.businesses).set(data).where(eq(schema.businesses.id, existing.id));
       return db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.id, existing.id) });
     }
-    return db.insert(schema.businesses).values({ account_id: accountId, business_name: dto.business_name ?? 'Business', ...dto }).returning();
+    return db.insert(schema.businesses).values({ account_id: accountId, business_name: (data.business_name as string) ?? 'Business', ...data }).returning();
   }
   if (type === 'institution') {
     const existing = await db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
     if (existing) {
-      await db.update(schema.institutions).set(dto).where(eq(schema.institutions.id, existing.id));
+      await db.update(schema.institutions).set(data).where(eq(schema.institutions.id, existing.id));
       return db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.id, existing.id) });
     }
-    return db.insert(schema.institutions).values({ account_id: accountId, institution_name: dto.institution_name ?? 'Institution', ...dto }).returning();
+    return db.insert(schema.institutions).values({ account_id: accountId, institution_name: (data.institution_name as string) ?? 'Institution', ...data }).returning();
   }
   throw badRequest('Account type has no entity details');
 }

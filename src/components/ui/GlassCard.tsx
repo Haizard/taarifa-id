@@ -66,14 +66,14 @@ export function StatCard({
 }) {
   const chip = ACCENT_CHIP[tone];
   return (
-    <div className="glass p-4">
+    <div className="glass min-w-0 overflow-hidden p-4">
       <div className={cn('mb-3 flex h-11 w-11 items-center justify-center rounded-full', chip)}>
         {icon}
       </div>
-      <div className="text-[28px] font-bold leading-tight text-ink-primary">{value}</div>
-      <div className="mt-1 text-[13px] text-ink-secondary">{label}</div>
+      <div className="break-all text-[28px] font-bold leading-tight text-ink-primary">{value}</div>
+      <div className="mt-1 break-words text-[13px] text-ink-secondary">{label}</div>
       {trend && (
-        <div className="mt-1 inline-block rounded-full bg-glass-subtle px-2 py-0.5 text-[12px] text-accent-success">
+        <div className="mt-1 inline-block max-w-full rounded-full bg-glass-subtle px-2 py-0.5 text-[12px] text-accent-success">
           {trend}
         </div>
       )}
@@ -101,12 +101,12 @@ export function Badge({ tone = 'grey', children }: { tone?: 'green' | 'grey' | '
 
 export function LargeTitleHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
   return (
-    <div className="flex items-end justify-between px-1 pb-5 pt-2">
-      <div>
-        <h1 className="text-[34px] font-bold leading-tight tracking-[-0.4px] text-ink-primary">{title}</h1>
-        {subtitle && <p className="mt-1 text-[15px] text-ink-secondary">{subtitle}</p>}
+    <div className="flex flex-wrap items-end justify-between gap-3 px-1 pb-5 pt-2">
+      <div className="min-w-0">
+        <h1 className="break-words text-[34px] font-bold leading-tight tracking-[-0.4px] text-ink-primary">{title}</h1>
+        {subtitle && <p className="mt-1 break-words text-[15px] text-ink-secondary">{subtitle}</p>}
       </div>
-      {right}
+      {right && <div className="min-w-0 shrink-0">{right}</div>}
     </div>
   );
 }

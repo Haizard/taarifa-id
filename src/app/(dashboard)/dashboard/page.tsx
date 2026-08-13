@@ -95,8 +95,8 @@ export default function DashboardOverview() {
       )}
 
       <SectionLabel tone="blue">Your profile</SectionLabel>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="glass flex flex-col items-center justify-center p-5">
+      <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="glass flex min-w-0 flex-col items-center justify-center p-5">
           <ProgressRing percent={complete} label="complete" />
         </div>
         <StatCard tone="blue" icon={<BadgeCheck size={22} />} value={data?.me?.profile_id ?? '—'} label="Profile ID" />
@@ -105,13 +105,13 @@ export default function DashboardOverview() {
       </div>
 
       <SectionLabel tone="lavender">Quick actions</SectionLabel>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-4">
         {quickActions.map((a) => (
-          <Link key={a.href} href={a.href} className="glass btn-scale flex flex-col items-start gap-3 p-5">
-            <div className={cn('flex h-11 w-11 items-center justify-center rounded-full', ACCENT_CHIP[a.tone])}>
+          <Link key={a.href} href={a.href} className="glass btn-scale flex min-w-0 flex-col items-start gap-3 p-5">
+            <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full', ACCENT_CHIP[a.tone])}>
               <a.icon size={22} />
             </div>
-            <span className="text-[15px] font-semibold text-ink-primary">{a.label}</span>
+            <span className="break-words text-[15px] font-semibold text-ink-primary">{a.label}</span>
           </Link>
         ))}
       </div>
@@ -124,20 +124,20 @@ export default function DashboardOverview() {
               <Link
                 key={p.id}
                 href={`/dashboard/profile?id=${p.id}`}
-                className="flex items-center justify-between border-b border-separator py-3 last:border-b-0"
+                className="flex min-w-0 items-center justify-between gap-3 border-b border-separator py-3 last:border-b-0"
               >
-                <div className="flex items-center gap-3">
-                  <div className={cn('flex h-10 w-10 items-center justify-center rounded-full', ACCENT_CHIP[['blue', 'lavender', 'yellow', 'red'][i % 4] as AccentTone])}>
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', ACCENT_CHIP[['blue', 'lavender', 'yellow', 'red'][i % 4] as AccentTone])}>
                     <UserRound size={20} />
                   </div>
-                  <div>
-                    <div className="text-[16px] font-medium text-ink-primary">
+                  <div className="min-w-0">
+                    <div className="truncate text-[16px] font-medium text-ink-primary">
                       {p.first_name} {p.last_name}
                     </div>
-                    <div className="text-[12px] capitalize text-ink-secondary">{p.member_type} · {p.profile_code}</div>
+                    <div className="truncate text-[12px] capitalize text-ink-secondary">{p.member_type} · {p.profile_code}</div>
                   </div>
                 </div>
-                <span className="text-[13px] text-accent-primary">Edit</span>
+                <span className="shrink-0 text-[13px] text-accent-primary">Edit</span>
               </Link>
             ))}
           </div>

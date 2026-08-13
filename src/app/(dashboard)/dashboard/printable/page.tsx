@@ -105,17 +105,17 @@ export default function PrintablePage() {
           <div className="relative text-white">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/25">
                   <UserRound size={20} />
                 </div>
-                <div>
-                  <div className="text-[18px] font-bold">
+                <div className="min-w-0">
+                  <div className="break-words text-[18px] font-bold leading-tight">
                     {current?.first_name} {current?.last_name}
                   </div>
                   <div className="text-[12px] capitalize text-white/80">{current?.member_type}</div>
                 </div>
               </div>
-              <div className="rounded-xl bg-white p-1.5">
+              <div className="ml-2 shrink-0 rounded-xl bg-white p-1.5">
                 {cardUrl && <QRCode value={cardUrl} size={72} />}
               </div>
             </div>

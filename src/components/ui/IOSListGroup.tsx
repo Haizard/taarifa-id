@@ -31,9 +31,9 @@ export function IOSListRow({
       className={cn('flex min-h-[44px] items-center gap-3 border-b border-separator px-4 py-3 last:border-b-0', onClick && 'btn-scale cursor-pointer', className)}
       onClick={onClick}
     >
-      {label && <div className="min-w-0 flex-1 text-[17px] text-ink-primary">{label}</div>}
+      {label && <div className="min-w-0 flex-1 break-words text-[17px] text-ink-primary">{label}</div>}
       {children}
-      {value !== undefined && <div className="text-[17px] text-ink-secondary">{value}</div>}
+      {value !== undefined && <div className="min-w-0 break-words text-right text-[17px] text-ink-secondary">{value}</div>}
       {right}
     </div>
   );

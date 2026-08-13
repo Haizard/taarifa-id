@@ -81,7 +81,7 @@ export default function ProfileEditor() {
   if (isLoading) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
 
   return (
-    <div>
+    <div className="min-w-0">
       <LargeTitleHeader title="Profile" subtitle={`${user?.account_type} account`} />
 
       {user?.account_type !== 'individual' && entity && (
@@ -95,7 +95,7 @@ export default function ProfileEditor() {
             <button
               key={p.id}
               onClick={() => setSelectedId(p.id)}
-              className={`btn-scale shrink-0 rounded-button px-4 py-2 text-[14px] font-medium ${selected?.id === p.id ? 'bg-accent-primary text-white' : 'glass text-ink-secondary'}`}
+              className={`btn-scale shrink-0 whitespace-nowrap rounded-button px-4 py-2 text-[14px] font-medium ${selected?.id === p.id ? 'bg-accent-primary text-white' : 'glass text-ink-secondary'}`}
             >
               {p.first_name} {p.last_name} · {p.member_type}
             </button>
@@ -128,9 +128,10 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
   const nameKey =
     entityType === 'family' ? 'family_name' : entityType === 'school' ? 'school_name' : entityType === 'business' ? 'business_name' : 'institution_name';
   const label = entityType === 'family' ? 'Family name' : entityType === 'school' ? 'School name' : entityType === 'business' ? 'Business name' : 'Institution name';
+  const contactsKey = entityType === 'school' ? 'school_contacts' : entityType === 'business' ? 'business_contacts' : entityType === 'institution' ? 'institution_contacts' : null;
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 min-w-0">
       <SectionLabel tone="lavender">Organization details</SectionLabel>
       <IOSListGroup>
         <IOSInput label={label} value={form[nameKey] ?? ''} onChange={(e) => set(nameKey, e.target.value)} />
@@ -154,8 +155,10 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
         <IOSInput label="District" value={form.district ?? ''} onChange={(e) => set('district', e.target.value)} />
         <IOSInput label="Ward" value={form.ward ?? ''} onChange={(e) => set('ward', e.target.value)} />
         <IOSInput label="Local authority" value={form.local_authority_name ?? ''} onChange={(e) => set('local_authority_name', e.target.value)} />
-        <IOSTextArea label="Extra notes" value={form.extra_notes ?? ''} onChange={(e) => set('extra_notes', e.target.value)} />
-        <IOSInput label="Contacts" value={form.business_contacts ?? form.school_contacts ?? form.institution_contacts ?? ''} onChange={(e) => set('contacts', e.target.value)} />
+        <IOSTextArea label="Extra notes" value={form.extra_notes ?? form.extra_physical_details ?? ''} onChange={(e) => set('extra_notes', e.target.value)} />
+        {contactsKey && (
+          <IOSInput label="Contacts" value={form[contactsKey] ?? ''} onChange={(e) => set(contactsKey, e.target.value)} />
+        )}
       </IOSListGroup>
       <GlassButton variant="secondary" className="mt-2" onClick={() => onSave(form)}>
         Save organization details
