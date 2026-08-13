@@ -6,7 +6,8 @@ import { toast } from 'react-hot-toast';
 import { CreditCard, Wallet } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { LargeTitleHeader, GlassButton, Badge, SectionLabel } from '@/components/ui/GlassCard';
+import { cn } from '@/lib/utils';
+import { LargeTitleHeader, GlassButton, Badge, SectionLabel, ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 import { IOSListGroup, IOSSelect, IOSListRow } from '@/components/ui/IOSListGroup';
 
 const PRICES: Record<number, number> = { 3: 3500, 6: 6500, 12: 12000 };
@@ -36,7 +37,7 @@ export default function PaymentsPage() {
     <div>
       <LargeTitleHeader title="Payments" subtitle="Renew and manage your subscription" />
 
-      <SectionLabel>Current status</SectionLabel>
+      <SectionLabel tone="green">Current status</SectionLabel>
       <div className="glass p-5">
         <div className="flex items-center justify-between">
           <div>
@@ -53,7 +54,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <SectionLabel>Renew / subscribe</SectionLabel>
+      <SectionLabel tone="lavender">Renew / subscribe</SectionLabel>
       <IOSListGroup>
         <IOSSelect label="Payment method" value={method} onChange={(v) => setMethod(v as any)}>
           <option value="mobile_wallet">Mobile wallet</option>
@@ -70,13 +71,13 @@ export default function PaymentsPage() {
         {payMutation.isPending ? 'Processing…' : method === 'mobile_wallet' ? 'Pay with mobile wallet' : 'Pay via bank'}
       </GlassButton>
 
-      <SectionLabel>Payment history</SectionLabel>
+      <SectionLabel tone="yellow">Payment history</SectionLabel>
       <div className="glass p-4">
         {history?.length ? (
           history.map((p: any) => (
             <div key={p.id} className="flex items-center justify-between border-b border-separator py-3 last:border-b-0">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+                <div className={cn('flex h-9 w-9 items-center justify-center rounded-full', ACCENT_CHIP[p.status === 'success' ? 'green' : p.status === 'pending' ? 'yellow' : 'red'])}>
                   {p.method === 'mobile_wallet' ? <Wallet size={18} /> : <CreditCard size={18} />}
                 </div>
                 <div>

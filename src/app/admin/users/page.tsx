@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
-import { LargeTitleHeader, Badge } from '@/components/ui/GlassCard';
+import { cn } from '@/lib/utils';
+import { LargeTitleHeader, Badge, ACCENT_CHIP, ACCOUNT_TYPE_TONE, type AccentTone } from '@/components/ui/GlassCard';
 import { EmptyState } from '@/components/ui/Control';
 
 export default function AdminUsers() {
@@ -17,7 +18,7 @@ export default function AdminUsers() {
           {users.map((u: any) => (
             <div key={u.id} className="flex flex-col gap-2 border-b border-separator py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+                <div className={cn('flex h-10 w-10 items-center justify-center rounded-full', ACCENT_CHIP[ACCOUNT_TYPE_TONE[u.account_type] ?? 'blue'])}>
                   <UserRound size={20} />
                 </div>
                 <div>
@@ -30,7 +31,7 @@ export default function AdminUsers() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge>{u.account_type}</Badge>
+                <Badge tone={ACCOUNT_TYPE_TONE[u.account_type] ?? 'grey'}>{u.account_type}</Badge>
                 {u.parentAccount ? (
                   <Badge tone="orange">sub of @{u.parentAccount.username}</Badge>
                 ) : (

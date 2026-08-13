@@ -43,7 +43,7 @@ export default function SettingsPage() {
     <div>
       <LargeTitleHeader title="Settings" subtitle="Account preferences" />
 
-      <SectionLabel>Account</SectionLabel>
+      <SectionLabel tone="blue">Account</SectionLabel>
       <IOSListGroup>
         <IOSListRow label="Username" value={user?.username} />
         <IOSListRow label="Account type" value={user?.account_type} />
@@ -51,7 +51,7 @@ export default function SettingsPage() {
         <IOSListRow label="Profile ID" value={user?.profile_id} />
       </IOSListGroup>
 
-      <SectionLabel>Change password</SectionLabel>
+      <SectionLabel tone="red">Change password</SectionLabel>
       <IOSListGroup>
         <IOSInput label="Current password" type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
         <IOSInput label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
@@ -61,7 +61,7 @@ export default function SettingsPage() {
         {loading ? 'Saving…' : 'Update password'}
       </GlassButton>
 
-      <SectionLabel>SMS notifications</SectionLabel>
+      <SectionLabel tone="yellow">SMS notifications</SectionLabel>
       <IOSListGroup>
         <IOSListRow label="Profile updates">
           <IOSSwitch checked={notif.sms_updates} onChange={() => toggleNotif('sms_updates')} />

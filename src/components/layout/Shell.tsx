@@ -17,23 +17,24 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
+import { ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 
-const NAV = [
-  { href: '/dashboard', label: 'Home', icon: Home, show: () => true },
-  { href: '/dashboard/profile', label: 'Profile', icon: UserRound, show: () => true },
-  { href: '/dashboard/sub-accounts', label: 'Members', icon: UsersRound, show: (r: string) => r !== 'individual' },
-  { href: '/dashboard/payments', label: 'Payments', icon: CreditCard, show: () => true },
-  { href: '/dashboard/printable', label: 'ID Card', icon: QrCode, show: () => true },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings, show: () => true },
-  { href: '/dashboard/move-account', label: 'Move', icon: ArrowLeftRight, show: () => true },
+const NAV: { href: string; label: string; icon: any; tone: AccentTone; show: (r: string) => boolean }[] = [
+  { href: '/dashboard', label: 'Home', icon: Home, tone: 'blue', show: () => true },
+  { href: '/dashboard/profile', label: 'Profile', icon: UserRound, tone: 'lavender', show: () => true },
+  { href: '/dashboard/sub-accounts', label: 'Members', icon: UsersRound, tone: 'yellow', show: (r: string) => r !== 'individual' },
+  { href: '/dashboard/payments', label: 'Payments', icon: CreditCard, tone: 'green', show: () => true },
+  { href: '/dashboard/printable', label: 'ID Card', icon: QrCode, tone: 'red', show: () => true },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, tone: 'blue', show: () => true },
+  { href: '/dashboard/move-account', label: 'Move', icon: ArrowLeftRight, tone: 'lavender', show: () => true },
 ];
 
-const MOBILE_TABS = [
-  { href: '/dashboard', label: 'Home', icon: Home },
-  { href: '/dashboard/profile', label: 'Profile', icon: UserRound },
-  { href: '/dashboard/payments', label: 'Pay', icon: CreditCard },
-  { href: '/dashboard/printable', label: 'Card', icon: QrCode },
-  { href: '/dashboard/settings', label: 'More', icon: Settings },
+const MOBILE_TABS: { href: string; label: string; icon: any; tone: AccentTone }[] = [
+  { href: '/dashboard', label: 'Home', icon: Home, tone: 'blue' },
+  { href: '/dashboard/profile', label: 'Profile', icon: UserRound, tone: 'lavender' },
+  { href: '/dashboard/payments', label: 'Pay', icon: CreditCard, tone: 'green' },
+  { href: '/dashboard/printable', label: 'Card', icon: QrCode, tone: 'red' },
+  { href: '/dashboard/settings', label: 'More', icon: Settings, tone: 'yellow' },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -75,9 +76,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 rounded-button px-3 py-3 text-[16px] font-medium transition-colors',
-                  pathname === item.href
-                    ? 'bg-accent-primary/15 text-accent-primary'
-                    : 'text-ink-secondary hover:bg-glass-subtle',
+                  pathname === item.href ? ACCENT_CHIP[item.tone] : 'text-ink-secondary hover:bg-glass-subtle',
                 )}
               >
                 <item.icon size={22} strokeWidth={2} />
@@ -144,7 +143,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               href={tab.href}
               className={cn(
                 'btn-scale flex flex-col items-center gap-1 rounded-button px-3 py-2',
-                pathname === tab.href ? 'text-accent-primary' : 'text-ink-secondary',
+                pathname === tab.href ? ACCENT_CHIP[tab.tone] : 'text-ink-secondary',
               )}
             >
               <tab.icon size={24} strokeWidth={pathname === tab.href ? 2.5 : 1.8} />

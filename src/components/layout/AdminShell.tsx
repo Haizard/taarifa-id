@@ -5,13 +5,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Users, UserRound, CreditCard, BarChart3, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
+import { ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 
-const NAV = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/accounts', label: 'Accounts', icon: Users },
-  { href: '/admin/users', label: 'Users', icon: UserRound },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
-  { href: '/admin/reports', label: 'Reports', icon: BarChart3 },
+const NAV: { href: string; label: string; icon: any; tone: AccentTone }[] = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, tone: 'blue' },
+  { href: '/admin/accounts', label: 'Accounts', icon: Users, tone: 'lavender' },
+  { href: '/admin/users', label: 'Users', icon: UserRound, tone: 'yellow' },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard, tone: 'green' },
+  { href: '/admin/reports', label: 'Reports', icon: BarChart3, tone: 'red' },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -38,7 +39,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 rounded-button px-3 py-3 text-[16px] font-medium transition-colors',
-                  pathname === item.href ? 'bg-accent-primary/15 text-accent-primary' : 'text-ink-secondary hover:bg-glass-subtle',
+                  pathname === item.href ? ACCENT_CHIP[item.tone] : 'text-ink-secondary hover:bg-glass-subtle',
                 )}
               >
                 <item.icon size={22} strokeWidth={2} />
@@ -93,7 +94,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               href={item.href}
               className={cn(
                 'btn-scale flex flex-col items-center gap-1 rounded-button px-3 py-2',
-                pathname === item.href ? 'text-accent-primary' : 'text-ink-secondary',
+                pathname === item.href ? ACCENT_CHIP[item.tone] : 'text-ink-secondary',
               )}
             >
               <item.icon size={24} strokeWidth={pathname === item.href ? 2.5 : 1.8} />

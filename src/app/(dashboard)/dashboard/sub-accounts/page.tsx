@@ -6,7 +6,8 @@ import { toast } from 'react-hot-toast';
 import { Plus, Lock, Unlock, KeyRound, UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { LargeTitleHeader, GlassButton, Badge, SectionLabel } from '@/components/ui/GlassCard';
+import { cn } from '@/lib/utils';
+import { LargeTitleHeader, GlassButton, Badge, SectionLabel, ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 import { IOSListGroup, IOSInput, IOSSelect, IOSListRow, IOSSwitch } from '@/components/ui/IOSListGroup';
 import { EmptyState } from '@/components/ui/Control';
 
@@ -84,10 +85,10 @@ export default function SubAccountsPage() {
 
       {visible?.length ? (
         <div className="glass p-4">
-          {visible.map((s: any) => (
+          {visible.map((s: any, i: number) => (
             <div key={s.id} className="flex flex-col gap-3 border-b border-separator py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+                <div className={cn('flex h-10 w-10 items-center justify-center rounded-full', ACCENT_CHIP[['blue', 'lavender', 'yellow', 'red'][i % 4] as AccentTone])}>
                   <UserRound size={20} />
                 </div>
                 <div>
@@ -133,7 +134,7 @@ export default function SubAccountsPage() {
 
       {open && (
         <div className="mt-6">
-          <SectionLabel>New member account</SectionLabel>
+          <SectionLabel tone="red">New member account</SectionLabel>
           <IOSListGroup>
             <IOSInput label="First name" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
             <IOSInput label="Last name" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />

@@ -88,7 +88,7 @@ export default function ProfileEditor() {
         <EntityForm entity={entity} onSave={entityMutation.mutate} entityType={user!.account_type} />
       )}
 
-      <SectionLabel>Person profiles</SectionLabel>
+      <SectionLabel tone="blue">Person profiles</SectionLabel>
       {profiles?.length ? (
         <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-2">
           {profiles.map((p: any) => (
@@ -131,7 +131,7 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
 
   return (
     <div className="mb-8">
-      <SectionLabel>Organization details</SectionLabel>
+      <SectionLabel tone="lavender">Organization details</SectionLabel>
       <IOSListGroup>
         <IOSInput label={label} value={form[nameKey] ?? ''} onChange={(e) => set(nameKey, e.target.value)} />
         {entityType === 'school' && (
@@ -430,7 +430,7 @@ function CreateMemberForm({ accountType, onCreate }: { accountType: string; onCr
 
   return (
     <div className="mt-8">
-      <SectionLabel>New member</SectionLabel>
+      <SectionLabel tone="yellow">New member</SectionLabel>
       <IOSListGroup>
         <IOSSelect label="Member type" value={form.member_type} onChange={(v) => set('member_type', v)}>
           {memberOptions.map(([v, l]) => (

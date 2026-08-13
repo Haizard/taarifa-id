@@ -30,7 +30,7 @@ export default function AdminReports() {
     <div>
       <LargeTitleHeader title="Reports" subtitle="URL access and audit logs" />
 
-      <SectionLabel>URL access report</SectionLabel>
+      <SectionLabel tone="blue">URL access report</SectionLabel>
       {report?.by_url?.length ? (
         <div className="glass p-4">
           {report.by_url.map((r: any) => (
@@ -50,7 +50,7 @@ export default function AdminReports() {
         <EmptyState icon={<LinkIcon size={28} />} title="No URL accesses yet" subtitle="Public profile links will be tracked here." />
       )}
 
-      <SectionLabel>System admin audit log</SectionLabel>
+      <SectionLabel tone="lavender">System admin audit log</SectionLabel>
       {logs?.length ? (
         <div className="glass p-4">
           {logs.map((l: any) => (
@@ -69,7 +69,7 @@ export default function AdminReports() {
         <EmptyState icon={<ListPlus size={28} />} title="No audit entries yet" subtitle="Admin actions will be logged here." />
       )}
 
-      <SectionLabel>Add lookup value</SectionLabel>
+      <SectionLabel tone="yellow">Add lookup value</SectionLabel>
       <IOSListGroup>
         <IOSSelect label="Table" value={lookupForm.table} onChange={(v) => setLookupForm({ ...lookupForm, table: v })}>
           <option value="acute">Acute conditions</option>

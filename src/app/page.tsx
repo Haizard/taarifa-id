@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ArrowRight, Building2, GraduationCap, HeartPulse, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { ACCENT_CHIP, ACCOUNT_TYPE_TONE } from '@/components/ui/GlassCard';
 
 const ACCOUNT_TYPES = [
   { key: 'individual', label: 'Individual', icon: UserRound },
@@ -116,7 +118,7 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {ACCOUNT_TYPES.map((t) => (
             <Link key={t.key} href={`/register?type=${t.key}`} className="glass btn-scale flex flex-col items-center gap-3 p-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+              <div className={cn('flex h-14 w-14 items-center justify-center rounded-full', ACCENT_CHIP[ACCOUNT_TYPE_TONE[t.key] ?? 'blue'])}>
                 <t.icon size={26} />
               </div>
               <div className="text-[17px] font-semibold text-ink-primary">{t.label}</div>

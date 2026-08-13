@@ -43,7 +43,7 @@ export default function MoveAccountPage() {
           </div>
         </div>
 
-        <SectionLabel>Target scheme</SectionLabel>
+        <SectionLabel tone="lavender">Target scheme</SectionLabel>
         <div className="mb-6">
           <SegmentedControl
             value={scheme}

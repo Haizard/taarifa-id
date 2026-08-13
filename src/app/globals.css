@@ -42,8 +42,10 @@ body {
 .app-bg {
   background-color: #f2f4f8;
   background-image:
-    radial-gradient(circle at 12% 8%, rgba(234, 241, 251, 0.9), transparent 40%),
-    radial-gradient(circle at 88% 92%, rgba(247, 239, 251, 0.9), transparent 42%);
+    radial-gradient(circle at 10% 6%, rgba(77, 163, 255, 0.14), transparent 38%),
+    radial-gradient(circle at 90% 14%, rgba(167, 139, 250, 0.16), transparent 40%),
+    radial-gradient(circle at 14% 92%, rgba(255, 204, 0, 0.1), transparent 36%),
+    radial-gradient(circle at 88% 92%, rgba(255, 69, 58, 0.08), transparent 40%);
   background-attachment: fixed;
   min-height: 100vh;
 }

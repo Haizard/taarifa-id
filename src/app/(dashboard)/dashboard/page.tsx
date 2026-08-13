@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { CreditCard, QrCode, UserRound, UsersRound, MapPin, BadgeCheck, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { LargeTitleHeader, StatCard, Badge, GlassCard, SectionLabel } from '@/components/ui/GlassCard';
+import { cn } from '@/lib/utils';
+import { LargeTitleHeader, StatCard, Badge, GlassCard, SectionLabel, ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 import { ProgressRing } from '@/components/ui/Control';
 
 interface DashboardData {
@@ -51,11 +52,11 @@ export default function DashboardOverview() {
 
   const expired = data?.status?.status === 'expired' || (data?.status?.expire_date && new Date(data.status.expire_date) < new Date());
 
-  const quickActions = [
-    { href: '/dashboard/profile', label: 'Edit profile', icon: UserRound },
-    { href: '/dashboard/printable', label: 'ID card', icon: QrCode },
-    { href: '/dashboard/payments', label: 'Pay / renew', icon: CreditCard },
-    ...(user?.role !== 'individual' ? [{ href: '/dashboard/sub-accounts', label: 'Members', icon: UsersRound }] : []),
+  const quickActions: { href: string; label: string; icon: any; tone: AccentTone }[] = [
+    { href: '/dashboard/profile', label: 'Edit profile', icon: UserRound, tone: 'blue' },
+    { href: '/dashboard/printable', label: 'ID card', icon: QrCode, tone: 'lavender' },
+    { href: '/dashboard/payments', label: 'Pay / renew', icon: CreditCard, tone: 'yellow' },
+    ...(user?.role !== 'individual' ? [{ href: '/dashboard/sub-accounts', label: 'Members', icon: UsersRound, tone: 'red' as AccentTone }] : []),
   ];
 
   return (
@@ -93,21 +94,21 @@ export default function DashboardOverview() {
         </div>
       )}
 
-      <SectionLabel>Your profile</SectionLabel>
+      <SectionLabel tone="blue">Your profile</SectionLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="glass flex flex-col items-center justify-center p-5">
           <ProgressRing percent={complete} label="complete" />
         </div>
-        <StatCard icon={<BadgeCheck size={22} />} value={data?.me?.profile_id ?? '—'} label="Profile ID" />
-        <StatCard icon={<UsersRound size={22} />} value={data?.profiles?.length ?? 0} label="Person profiles" />
-        <StatCard icon={<CreditCard size={22} />} value={data?.payments?.length ?? 0} label="Payments" />
+        <StatCard tone="blue" icon={<BadgeCheck size={22} />} value={data?.me?.profile_id ?? '—'} label="Profile ID" />
+        <StatCard tone="lavender" icon={<UsersRound size={22} />} value={data?.profiles?.length ?? 0} label="Person profiles" />
+        <StatCard tone="yellow" icon={<CreditCard size={22} />} value={data?.payments?.length ?? 0} label="Payments" />
       </div>
 
-      <SectionLabel>Quick actions</SectionLabel>
+      <SectionLabel tone="lavender">Quick actions</SectionLabel>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {quickActions.map((a) => (
           <Link key={a.href} href={a.href} className="glass btn-scale flex flex-col items-start gap-3 p-5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+            <div className={cn('flex h-11 w-11 items-center justify-center rounded-full', ACCENT_CHIP[a.tone])}>
               <a.icon size={22} />
             </div>
             <span className="text-[15px] font-semibold text-ink-primary">{a.label}</span>
@@ -117,16 +118,16 @@ export default function DashboardOverview() {
 
       {data?.profiles && data.profiles.length > 0 && (
         <>
-          <SectionLabel>Profiles</SectionLabel>
+          <SectionLabel tone="yellow">Profiles</SectionLabel>
           <div className="glass p-5">
-            {data.profiles.map((p: any) => (
+            {data.profiles.map((p: any, i: number) => (
               <Link
                 key={p.id}
                 href={`/dashboard/profile?id=${p.id}`}
                 className="flex items-center justify-between border-b border-separator py-3 last:border-b-0"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
+                  <div className={cn('flex h-10 w-10 items-center justify-center rounded-full', ACCENT_CHIP[['blue', 'lavender', 'yellow', 'red'][i % 4] as AccentTone])}>
                     <UserRound size={20} />
                   </div>
                   <div>

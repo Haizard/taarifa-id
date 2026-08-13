@@ -64,7 +64,7 @@ export default function NotificationsPage() {
       ) : (
         <EmptyState icon={<Info size={28} />} title="No notifications yet" subtitle="Payment and renewal updates will appear here." />
       )}
-      <SectionLabel>Info</SectionLabel>
+      <SectionLabel tone="green">Info</SectionLabel>
       <div className="glass p-4 text-[14px] text-ink-secondary">
         SMS notifications for renewals and profile updates can be managed in Settings.
       </div>

@@ -78,7 +78,7 @@ export default function PrintablePage() {
     <div>
       <LargeTitleHeader title="ID Card" subtitle="Printable card preview" />
 
-      <SectionLabel>Profile</SectionLabel>
+      <SectionLabel tone="blue">Profile</SectionLabel>
       <IOSListGroup>
         {profiles?.length > 1 && (
           <IOSListRow label="Profile">
@@ -98,7 +98,7 @@ export default function PrintablePage() {
         <IOSListRow label="Profile ID" value={user?.profile_id} />
       </IOSListGroup>
 
-      <SectionLabel>Card preview</SectionLabel>
+      <SectionLabel tone="lavender">Card preview</SectionLabel>
       <div className="flex justify-center">
         <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #4DA3FF, #A78BFA)' }}>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/10" />
@@ -136,7 +136,7 @@ export default function PrintablePage() {
         </div>
       </div>
 
-      <SectionLabel>Fields to print (optional on card)</SectionLabel>
+      <SectionLabel tone="yellow">Fields to print (optional on card)</SectionLabel>
       <IOSListGroup>
         {FIELD_KEYS.map((k) => (
           <IOSListRow key={k} label={k.replace(/_/g, ' ')}>

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { api } from '@/lib/api';
-import { LargeTitleHeader, Badge, GlassButton } from '@/components/ui/GlassCard';
+import { LargeTitleHeader, Badge, GlassButton, ACCOUNT_TYPE_TONE } from '@/components/ui/GlassCard';
 import { IOSListGroup, IOSInput, IOSSelect } from '@/components/ui/IOSListGroup';
 import { EmptyState } from '@/components/ui/Control';
 import { Users } from 'lucide-react';
@@ -74,7 +74,7 @@ export default function AdminAccounts() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge>{a.account_type}</Badge>
+                <Badge tone={ACCOUNT_TYPE_TONE[a.account_type] ?? 'grey'}>{a.account_type}</Badge>
                 <Badge tone={a.role === 'system_admin' ? 'orange' : 'grey'}>{a.role}</Badge>
                 {a.is_reseller && <Badge tone="green">RESELLER</Badge>}
               </div>
