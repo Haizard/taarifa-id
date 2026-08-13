@@ -100,7 +100,7 @@ export default function PrintablePage() {
 
       <SectionLabel>Card preview</SectionLabel>
       <div className="flex justify-center">
-        <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)' }}>
+        <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #4DA3FF, #A78BFA)' }}>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/10" />
           <div className="relative text-white">
             <div className="flex items-start justify-between">

@@ -43,7 +43,7 @@ export function ProgressRing({ percent, size = 96, stroke = 8, label }: { percen
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#3B82F6"
+          stroke="#4DA3FF"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
