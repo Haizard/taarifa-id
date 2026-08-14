@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { Camera, UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
+import { MAX_PHOTO_BYTES, fileToResizedDataUrl } from '@/lib/image';
 import { GlassButton } from '@/components/ui/GlassCard';
 import { IOSInput, IOSSelect } from '@/components/ui/IOSListGroup';
 
@@ -41,13 +43,31 @@ function RegisterForm() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [smsCode, setSmsCode] = useState('');
   const [devCode, setDevCode] = useState('');
+  const [photo, setPhoto] = useState<string>('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const pickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return toast.error('Please select an image file');
+    if (file.size > MAX_PHOTO_BYTES) return toast.error('Photo must not exceed 1MB');
+    try {
+      const dataUrl = await fileToResizedDataUrl(file);
+      setPhoto(dataUrl);
+      setPhotoFile(file);
+    } catch {
+      toast.error('Could not read that image');
+    }
+  };
 
   const next = () => {
     if (step === 0 && !form.account_type) return toast.error('Select account type');
     if (step === 1) {
       if (!form.first_name || !form.last_name || !form.birthdate) return toast.error('Complete all required fields');
+      if (!photo) return toast.error('A profile photo is required');
       if (form.nationality === 'Tanzanian' && !form.nida_number) return toast.error('NIDA number required for Tanzanian nationals');
       if (form.nationality === 'Foreign' && !form.passport_number) return toast.error('Passport number required for foreigners');
       if (!/^255\d{9}$/.test(form.mobile_number)) return toast.error('Mobile must start with 255 and be 12 digits');
@@ -73,6 +93,7 @@ function RegisterForm() {
         mobile_number: form.mobile_number,
         email: form.email || undefined,
         password: form.password,
+        pic_url: photo,
       });
       setProfileId(res.profile_id);
       setDevCode(res.sms_code_dev ?? '');
@@ -141,6 +162,37 @@ function RegisterForm() {
             <div>
               <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Personal details</h1>
               <p className="mb-6 text-[15px] text-ink-secondary">Identity data shown on your ID card.</p>
+
+              <div className="mb-5 flex flex-col items-center gap-3">
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-glass-subtle text-ink-tertiary"
+                >
+                  {photo ? (
+                    <img src={photo} alt="Profile preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserRound size={40} />
+                  )}
+                  <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-accent-primary text-white">
+                    <Camera size={16} />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="text-[14px] font-medium text-accent-primary"
+                >
+                  {photo ? 'Change photo' : 'Add photo (required, max 1MB)'}
+                </button>
+                {photoFile && (
+                  <span className="text-[12px] text-ink-tertiary">
+                    {(photoFile.size / 1024).toFixed(0)} KB
+                  </span>
+                )}
+              </div>
+
               <div className="space-y-1">
                 <IOSInput label="First name" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
                 <IOSInput label="Middle name (optional)" value={form.middle_name} onChange={(e) => set('middle_name', e.target.value)} />
@@ -174,6 +226,15 @@ function RegisterForm() {
                   <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Almost there</h1>
                   <p className="mb-6 text-[15px] text-ink-secondary">Review and create your profile.</p>
                   <div className="mb-6 space-y-2 rounded-button bg-glass-subtle p-4 text-[14px]">
+                    {photo && (
+                      <div className="mb-3 flex items-center gap-3">
+                        <img src={photo} alt="Profile preview" className="h-14 w-14 rounded-full object-cover" />
+                        <div>
+                          <div className="font-medium text-ink-primary">Profile photo</div>
+                          <div className="text-[12px] text-ink-secondary">Shown on your ID card</div>
+                        </div>
+                      </div>
+                    )}
                     <div><span className="text-ink-secondary">Account:</span> <span className="capitalize">{form.account_type}</span></div>
                     <div><span className="text-ink-secondary">Name:</span> {form.first_name} {form.last_name}</div>
                     <div><span className="text-ink-secondary">Mobile:</span> {form.mobile_number}</div>

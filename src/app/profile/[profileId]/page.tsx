@@ -89,8 +89,8 @@ export default function PublicProfilePage() {
           <div className="relative">
             <div className="flex items-start justify-between">
               <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-primary/15 text-accent-primary">
-                  <UserRound size={24} />
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-accent-primary/15 text-accent-primary">
+                  {main?.pic_url ? <img src={main.pic_url} alt="Profile" className="h-full w-full object-cover" /> : <UserRound size={24} />}
                 </div>
                 <div className="mt-3 text-[17px] font-semibold text-ink-primary">
                   {main?.first_name} {main?.last_name}

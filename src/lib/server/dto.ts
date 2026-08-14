@@ -14,6 +14,7 @@ export interface RegisterDto {
   email?: string;
   account_type: AccountType;
   password: string;
+  pic_url?: string;
 }
 
 export interface FirstLoginDto {

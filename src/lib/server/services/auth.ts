@@ -7,9 +7,23 @@ import { signAccessToken, signRefreshToken, type JwtUser } from '../jwt';
 import { profileId, otpCode } from '../generators';
 import type { RegisterDto, FirstLoginDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, ChangePasswordDto } from '../dto';
 
+const MAX_PHOTO_BYTES = 1024 * 1024; // 1MB
+
+export function validatePhoto(dataUrl?: string): string | null {
+  if (!dataUrl) return null;
+  const match = /^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i.exec(dataUrl);
+  if (!match) throw badRequest('Invalid photo format');
+  const decoded = Buffer.from(match[2], 'base64');
+  if (decoded.length > MAX_PHOTO_BYTES) throw badRequest('Photo must not exceed 1MB');
+  return dataUrl;
+}
+
 const hash = (pw: string) => bcrypt.hash(pw, 10);
 
 export async function register(dto: RegisterDto) {
+  const photo = validatePhoto(dto.pic_url);
+  if (!photo) throw badRequest('A profile photo is required (max 1MB)');
+
   const exists = await db.query.accounts.findFirst({
     where: (t, { or }) => or(eq(t.mobile_number, dto.mobile_number)),
   });
@@ -44,6 +58,7 @@ export async function register(dto: RegisterDto) {
     owner_account_id: account.id,
     member_type: 'self',
     profile_code: pid,
+    pic_url: photo,
     first_name: dto.first_name,
     middle_name: dto.middle_name ?? null,
     last_name: dto.last_name,

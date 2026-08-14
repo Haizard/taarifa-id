@@ -2,6 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, forbidden, notFound } from '../errors';
+import { validatePhoto } from './auth';
 import type { CreatePersonProfileDto, UpdatePersonProfileDto, UpsertSubFormsDto } from '../dto';
 
 const profileWithRelations = {
@@ -117,7 +118,7 @@ export async function updateProfile(accountId: string, profileId: string, dto: U
       nida_number: dto.nationality === 'Tanzanian' ? dto.nida_number ?? null : null,
       passport_number: dto.nationality === 'Foreign' ? dto.passport_number ?? null : null,
       fluent_language: dto.fluent_language ?? null,
-      pic_url: dto.pic_url ?? existing.pic_url,
+      pic_url: dto.pic_url !== undefined ? validatePhoto(dto.pic_url) ?? existing.pic_url : existing.pic_url,
     })
     .where(eq(schema.personProfiles.id, profileId))
     .returning();

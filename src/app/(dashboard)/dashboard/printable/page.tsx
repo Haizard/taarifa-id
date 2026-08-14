@@ -105,8 +105,12 @@ export default function PrintablePage() {
           <div className="relative text-white">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/25">
-                  <UserRound size={20} />
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/25">
+                  {current?.pic_url ? (
+                    <img src={current.pic_url} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserRound size={24} />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <div className="break-words text-[18px] font-bold leading-tight">

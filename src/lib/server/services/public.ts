@@ -113,7 +113,7 @@ function applyVisibility(profile: any, visMap: Map<string, any>, overrideMap: Ma
   };
 
   const allowedKeys = new Set([
-    'first_name', 'last_name', 'gender', 'birthdate', 'nationality', 'fluent_language',
+    'first_name', 'last_name', 'gender', 'birthdate', 'nationality', 'fluent_language', 'pic_url',
   ]);
   const publicProfile: Record<string, any> = { id: profile.id, member_type: profile.member_type };
   for (const key of allowedKeys) {

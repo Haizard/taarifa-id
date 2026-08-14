@@ -84,7 +84,7 @@ export const personProfiles = pgTable('person_profiles', {
   member_type: memberTypeEnum('member_type').notNull(),
   common_name: varchar('common_name', { length: 100 }),
   profile_code: varchar('profile_code', { length: 32 }),
-  pic_url: varchar('pic_url', { length: 500 }),
+  pic_url: text('pic_url'),
   first_name: varchar('first_name', { length: 100 }).notNull(),
   middle_name: varchar('middle_name', { length: 100 }),
   last_name: varchar('last_name', { length: 100 }).notNull(),

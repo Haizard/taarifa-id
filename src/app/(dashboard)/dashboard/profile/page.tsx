@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Plus, X, UserRound } from 'lucide-react';
+import { Plus, X, UserRound, Camera } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
+import { MAX_PHOTO_BYTES, fileToResizedDataUrl } from '@/lib/image';
 import { LargeTitleHeader, GlassButton, SectionLabel } from '@/components/ui/GlassCard';
 import { IOSListGroup, IOSInput, IOSSelect, IOSTextArea, IOSSwitch, IOSListRow } from '@/components/ui/IOSListGroup';
 import { SegmentedControl, EmptyState } from '@/components/ui/Control';
@@ -179,7 +180,22 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
     nida_number: profile.nida_number ?? '',
     passport_number: profile.passport_number ?? '',
     fluent_language: profile.fluent_language ?? '',
+    pic_url: profile.pic_url ?? '',
   });
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const pickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return toast.error('Please select an image file');
+    if (file.size > MAX_PHOTO_BYTES) return toast.error('Photo must not exceed 1MB');
+    try {
+      const dataUrl = await fileToResizedDataUrl(file);
+      setBasic((b) => ({ ...b, pic_url: dataUrl }));
+    } catch {
+      toast.error('Could not read that image');
+    }
+  };
   const [sub, setSub] = useState<any>({
     health: profile.health ?? {},
     residence: profile.residence ?? {},
@@ -241,6 +257,30 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
       {tab === 'basic' && (
         <>
           <IOSListGroup title="Basic details">
+            <div className="flex flex-col items-center gap-2 border-b border-separator px-4 py-4 last:border-b-0">
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-glass-subtle text-ink-tertiary"
+              >
+                {basic.pic_url ? (
+                  <img src={basic.pic_url} alt="Profile preview" className="h-full w-full object-cover" />
+                ) : (
+                  <UserRound size={36} />
+                )}
+                <span className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-accent-primary text-white">
+                  <Camera size={14} />
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="text-[13px] font-medium text-accent-primary"
+              >
+                {basic.pic_url ? 'Change photo' : 'Add photo (max 1MB)'}
+              </button>
+            </div>
             <IOSInput label="First name" value={basic.first_name} onChange={(e) => setBasicField('first_name', e.target.value)} />
             <IOSInput label="Middle name" value={basic.middle_name} onChange={(e) => setBasicField('middle_name', e.target.value)} />
             <IOSInput label="Last name" value={basic.last_name} onChange={(e) => setBasicField('last_name', e.target.value)} />
