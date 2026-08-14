@@ -79,7 +79,19 @@ export default function ProfileEditor() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const bootstrapMutation = useMutation({
+    mutationFn: () => api.post('/profiles/self-bootstrap'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success('Profile created — you can now edit your details');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   if (isLoading) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
+
+  const isIndividual = user?.account_type === 'individual';
+  const needsBootstrap = isIndividual && (profiles?.length ?? 0) === 0;
 
   return (
     <div className="min-w-0">
@@ -90,7 +102,14 @@ export default function ProfileEditor() {
       )}
 
       <SectionLabel tone="blue">Person profiles</SectionLabel>
-      {profiles?.length ? (
+      {needsBootstrap ? (
+        <div className="glass mb-4 rounded-button p-4 text-[14px] text-ink-secondary">
+          <p className="mb-3">Your account doesn't have a personal profile yet. Create one to start saving your details and ID card.</p>
+          <GlassButton onClick={() => bootstrapMutation.mutate()} disabled={bootstrapMutation.isPending}>
+            {bootstrapMutation.isPending ? 'Creating…' : 'Create my profile'}
+          </GlassButton>
+        </div>
+      ) : profiles?.length ? (
         <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-2">
           {profiles.map((p: any) => (
             <button

@@ -1,8 +1,9 @@
 import { eq, and } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
-import { badRequest, forbidden, notFound } from '../errors';
+import { badRequest, conflict, forbidden, notFound } from '../errors';
 import { validatePhoto } from './auth';
+import { profileId as generateProfileId } from '../generators';
 import type { CreatePersonProfileDto, UpdatePersonProfileDto, UpsertSubFormsDto } from '../dto';
 
 const profileWithRelations = {
@@ -321,6 +322,42 @@ export async function upsertEntityDetails(accountId: string, dto: any) {
     return db.insert(schema.institutions).values({ account_id: accountId, institution_name: (data.institution_name as string) ?? 'Institution', ...data }).returning();
   }
   throw badRequest('Account type has no entity details');
+}
+
+/**
+ * Recovery path for accounts that exist in `accounts` but have no row in
+ * `person_profiles` (orphans created by older versions of the registration
+ * flow or by the bootstrap admin script before this fix). Lets an individual
+ * account self-bootstrap its own `self` profile from the dashboard.
+ */
+export async function bootstrapSelfProfile(accountId: string) {
+  const owner = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
+  if (!owner) throw notFound('Account not found');
+  if (owner.role !== 'individual' && owner.role !== 'system_admin') {
+    throw forbidden('Only individual accounts can self-bootstrap a profile here');
+  }
+
+  const existing = await db.query.personProfiles.findFirst({
+    where: (t, { and, eq }) => and(eq(t.owner_account_id, accountId), eq(t.member_type, 'self')),
+  });
+  if (existing) throw conflict('Self profile already exists');
+
+  const pid = generateProfileId();
+  const [created] = await db
+    .insert(schema.personProfiles)
+    .values({
+      owner_account_id: accountId,
+      member_type: 'self',
+      profile_code: pid,
+      first_name: owner.username,
+      last_name: 'Profile',
+      gender: 'Male',
+      birthdate: new Date('1970-01-01'),
+      nationality: 'Tanzanian',
+    })
+    .returning();
+
+  return created;
 }
 
 export async function getMembers(accountId: string) {

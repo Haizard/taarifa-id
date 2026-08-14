@@ -59,6 +59,7 @@ const routes: Route[] = [
   { method: 'POST', segments: ['profiles', 'members'], handler: (c) => profilesService.createMember(c.user!.sub, c.body) },
   { method: 'GET', segments: ['profiles', 'entity'], handler: (c) => profilesService.getEntityDetails(c.user!.sub) },
   { method: 'PUT', segments: ['profiles', 'entity'], handler: (c) => profilesService.upsertEntityDetails(c.user!.sub, c.body) },
+  { method: 'POST', segments: ['profiles', 'self-bootstrap'], handler: (c) => profilesService.bootstrapSelfProfile(c.user!.sub) },
   { method: 'GET', segments: ['profiles', { param: 'id' }], handler: (c) => profilesService.getProfile(c.user!.sub, c.params.id) },
   { method: 'PUT', segments: ['profiles', { param: 'id' }], handler: (c) => profilesService.updateProfile(c.user!.sub, c.params.id, c.body) },
   { method: 'PUT', segments: ['profiles', { param: 'id' }, 'sub-forms'], handler: (c) => profilesService.upsertSubForms(c.user!.sub, c.params.id, c.body) },
@@ -133,6 +134,9 @@ function matchRoute(method: Method, segments: string[]): { route: Route; params:
       }
     }
     if (!ok) continue;
+    // Prefer the most specific (most literal) match: a route with fewer
+    // dynamic segments should beat one that matched via more params, so we
+    // keep the candidate with the lower score.
     if (!best || score < best.score) best = { route, params, score };
   }
   return best ? { route: best.route, params: best.params } : null;

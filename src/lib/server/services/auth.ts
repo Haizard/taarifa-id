@@ -34,7 +34,10 @@ export async function register(dto: RegisterDto) {
   const pid = profileId();
   const passwordHash = await hash(dto.password);
 
-  const account = await db.transaction(async (tx) => {
+  // Account + profile + status + first-login code all live in one transaction so
+  // a failure on the profile insert can never leave us with a loginable but
+  // profile-less orphan account.
+  const { account, code } = await db.transaction(async (tx) => {
     const [acc] = await tx
       .insert(schema.accounts)
       .values({
@@ -51,36 +54,36 @@ export async function register(dto: RegisterDto) {
         first_login_at: null,
       })
       .returning();
-    return acc;
-  });
 
-  await db.insert(schema.personProfiles).values({
-    owner_account_id: account.id,
-    member_type: 'self',
-    profile_code: pid,
-    pic_url: photo,
-    first_name: dto.first_name,
-    middle_name: dto.middle_name ?? null,
-    last_name: dto.last_name,
-    gender: dto.gender,
-    birthdate: new Date(dto.birthdate),
-    nationality: dto.nationality,
-    nida_number: dto.nationality === 'Tanzanian' ? dto.nida_number ?? null : null,
-    passport_number: dto.nationality === 'Foreign' ? dto.passport_number ?? null : null,
-  });
+    await tx.insert(schema.personProfiles).values({
+      owner_account_id: acc.id,
+      member_type: 'self',
+      profile_code: pid,
+      pic_url: photo,
+      first_name: dto.first_name,
+      middle_name: dto.middle_name ?? null,
+      last_name: dto.last_name,
+      gender: dto.gender,
+      birthdate: new Date(dto.birthdate),
+      nationality: dto.nationality,
+      nida_number: dto.nationality === 'Tanzanian' ? dto.nida_number ?? null : null,
+      passport_number: dto.nationality === 'Foreign' ? dto.passport_number ?? null : null,
+    });
 
-  await db.insert(schema.profileStatus).values({
-    account_id: account.id,
-    status: 'expired',
-  });
+    await tx.insert(schema.profileStatus).values({
+      account_id: acc.id,
+      status: 'expired',
+    });
 
-  const code = otpCode();
-  const expires = new Date(Date.now() + 15 * 60 * 1000);
-  await db.insert(schema.authCodes).values({
-    account_id: account.id,
-    otp_code: code,
-    purpose: 'first_login',
-    expires_at: expires,
+    const otp = otpCode();
+    await tx.insert(schema.authCodes).values({
+      account_id: acc.id,
+      otp_code: otp,
+      purpose: 'first_login',
+      expires_at: new Date(Date.now() + 15 * 60 * 1000),
+    });
+
+    return { account: acc, code: otp };
   });
 
   return {
