@@ -102,6 +102,7 @@ const routes: Route[] = [
 
   // public
   { method: 'GET', segments: ['public', 'profiles', { param: 'profileId' }], public: true, handler: (c) => publicService.resolveByProfileId(c.params.profileId, publicRequestInfo(c.req)) },
+  { method: 'GET', segments: ['public', 'profiles', 'by-code', { param: 'profileCode' }], public: true, handler: (c) => publicService.resolveByProfileCode(c.params.profileCode, publicRequestInfo(c.req)) },
   { method: 'GET', segments: ['public', 'stats'], public: true, handler: () => publicService.stats() },
 ];
 

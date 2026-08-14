@@ -83,7 +83,7 @@ export const personProfiles = pgTable('person_profiles', {
   owner_account_id: uuid('owner_account_id').notNull().references(() => accounts.id),
   member_type: memberTypeEnum('member_type').notNull(),
   common_name: varchar('common_name', { length: 100 }),
-  profile_code: varchar('profile_code', { length: 32 }),
+  profile_code: varchar('profile_code', { length: 64 }).unique(),
   pic_url: text('pic_url'),
   first_name: varchar('first_name', { length: 100 }).notNull(),
   middle_name: varchar('middle_name', { length: 100 }),
@@ -96,7 +96,10 @@ export const personProfiles = pgTable('person_profiles', {
   fluent_language: varchar('fluent_language', { length: 100 }),
   ...timestamps,
   ...softDelete,
-}, (t) => [index('person_profiles_owner_idx').on(t.owner_account_id)]);
+}, (t) => [
+  index('person_profiles_owner_idx').on(t.owner_account_id),
+  index('person_profiles_code_idx').on(t.profile_code),
+]);
 
 export const mobileNumbers = pgTable('mobile_numbers', {
   id: uuid('id').primaryKey().defaultRandom(),

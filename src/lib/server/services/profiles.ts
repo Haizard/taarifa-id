@@ -3,7 +3,7 @@ import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, conflict, forbidden, notFound } from '../errors';
 import { validatePhoto } from './auth';
-import { profileId as generateProfileId } from '../generators';
+import { profileId as generateProfileId, memberCode } from '../generators';
 import type { CreatePersonProfileDto, UpdatePersonProfileDto, UpsertSubFormsDto } from '../dto';
 
 const profileWithRelations = {
@@ -43,7 +43,7 @@ export async function createMember(accountId: string, dto: CreatePersonProfileDt
       owner_account_id: accountId,
       member_type: memberType as typeof schema.memberTypeEnum.enumValues[number],
       common_name: dto.common_name ?? null,
-      profile_code: `MB-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+      profile_code: memberCode(),
       first_name: dto.first_name,
       middle_name: dto.middle_name ?? null,
       last_name: dto.last_name,
@@ -364,7 +364,7 @@ export async function getMembers(accountId: string) {
   const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
   if (!account) throw notFound('Account not found');
   const profiles = await db.query.personProfiles.findMany({
-    where: (t, { eq, ne }) => eq(t.owner_account_id, accountId),
+    where: (t, { eq, and, ne }) => and(eq(t.owner_account_id, accountId), ne(t.member_type, 'self')),
     with: {
       mobileNumbers: true,
       health: true,
@@ -374,5 +374,5 @@ export async function getMembers(accountId: string) {
       employment: { with: { employers: true, supervisors: true } },
     },
   });
-  return profiles.filter((p) => p.member_type !== 'self');
+  return profiles;
 }

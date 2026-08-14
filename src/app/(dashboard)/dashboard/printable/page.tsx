@@ -17,10 +17,6 @@ export default function PrintablePage() {
   const [cardUrl, setCardUrl] = useState('');
 
   useEffect(() => {
-    if (user?.profile_id) setCardUrl(`${window.location.origin}/profile/${user.profile_id}`);
-  }, [user]);
-
-  useEffect(() => {
     api
       .get<{ included_fields: string[] }>('/printable/fields')
       .then((d) => setSelectedFields(d.included_fields ?? []))
@@ -30,6 +26,16 @@ export default function PrintablePage() {
   const { data: profiles } = useQuery({ queryKey: ['profiles', user?.sub], queryFn: () => api.get('/profiles'), enabled: !!user });
 
   const current = profiles?.find((p: any) => p.id === selectedProfileId) ?? profiles?.[0];
+
+  // Per-member QR so each printed card opens that member's own public URL.
+  // Falls back to the account-level URL for legacy rows with no profile_code.
+  useEffect(() => {
+    if (!current) return;
+    const target = current.profile_code
+      ? `${window.location.origin}/profile/by-code/${current.profile_code}`
+      : `${window.location.origin}/profile/${user?.profile_id}`;
+    setCardUrl(target);
+  }, [current, user?.profile_id]);
 
   const saveFields = (fields: string[]) => {
     api

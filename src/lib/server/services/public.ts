@@ -90,6 +90,75 @@ export async function resolveByProfileId(profileId: string, req: PublicRequestIn
   };
 }
 
+/**
+ * Public lookup by an individual member's profile_code. Returns just that
+ * single member's filtered profile, plus the entity and account-level data so
+ * a per-member ID card can still show the family / school / business context
+ * when desired. Used by the per-member QR code so each printed card opens its
+ * own dedicated public page with that member's own photo.
+ */
+export async function resolveByProfileCode(profileCode: string, req: PublicRequestInfo) {
+  const member = await db.query.personProfiles.findFirst({
+    where: (t, { eq }) => eq(t.profile_code, profileCode),
+    with: {
+      mobileNumbers: true,
+      health: true,
+      residence: true,
+      emergencyContacts: true,
+      desperateConditions: true,
+      employment: { with: { employers: true, supervisors: true } },
+    },
+  });
+  if (!member) throw notFound('Profile not found');
+
+  const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, member.owner_account_id) });
+  if (!account) throw notFound('Profile not found');
+
+  await db.insert(schema.urlAccessLogs).values({
+    account_id: account.id,
+    url: `${req.baseUrl}${req.path}`,
+    ip: req.ip,
+    user_agent: req.userAgent,
+  });
+
+  const status = await db.query.profileStatus.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
+  const expired =
+    status?.status === 'expired' ||
+    (status?.expire_date ? new Date(status.expire_date) < new Date() : true);
+
+  if (expired) {
+    const qr = await generate(`${req.baseUrl}/renew/${account.profile_id}`);
+    return {
+      profile_id: account.profile_id,
+      member_profile_code: profileCode,
+      expired: true,
+      renewal_url: `/renew/${account.profile_id}`,
+      qr_data_url: qr,
+      message: 'This profile has expired. Please renew to view.',
+    };
+  }
+
+  const overrides = await db.query.fieldVisibilityOverrides.findMany({ where: (t, { eq }) => eq(t.account_id, account.id) });
+  const overrideMap = new Map(overrides.map((o) => [o.field_visibility_id, o.is_public]));
+
+  const visibility = await db.query.fieldVisibility.findMany({ where: (t, { eq }) => eq(t.account_type, account.account_type) });
+  const visibilityMap = new Map(visibility.map((v) => [`${v.entity_name}:${v.field_name}`, v]));
+
+  const filteredMember = applyVisibility(member, visibilityMap, overrideMap);
+  const entity = await getEntityPublic(account);
+
+  return {
+    profile_id: account.profile_id,
+    member_profile_code: profileCode,
+    member: filteredMember,
+    account_type: account.account_type,
+    is_reseller: account.is_reseller,
+    expired: false,
+    entity,
+    qr_data_url: await generate(`${req.baseUrl}/profile/by-code/${profileCode}`),
+  };
+}
+
 async function getEntityPublic(account: any) {
   switch (account.account_type) {
     case 'family': return db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, account.id) });
