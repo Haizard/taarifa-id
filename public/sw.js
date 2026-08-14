@@ -1,4 +1,4 @@
-const CACHE = 'taarifa-pwa-v1';
+const CACHE = 'taarifa-pwa-v2';
 const PRECACHE = ['/', '/login', '/register'];
 
 self.addEventListener('install', (event) => {
@@ -25,6 +25,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
