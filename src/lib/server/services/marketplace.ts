@@ -29,6 +29,7 @@ async function listOrganizationWorkers(accountId: string) {
     last_name: schema.personProfiles.last_name,
     common_name: schema.personProfiles.common_name,
     member_type: schema.personProfiles.member_type,
+    birthdate: schema.personProfiles.birthdate,
   }).from(schema.accounts)
     .innerJoin(schema.personProfiles, eq(schema.personProfiles.owner_account_id, schema.accounts.id))
     .where(and(
@@ -38,7 +39,9 @@ async function listOrganizationWorkers(accountId: string) {
       eq(schema.personProfiles.member_type, 'employee'),
       sql`${schema.accounts.deleted_at} is null`,
     ));
-  const workerIds = rows.map((worker) => worker.id);
+  const adultWorkers = rows.filter((worker) => Date.now() - new Date(worker.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000);
+  const workerIds = adultWorkers.map((worker) => worker.id);
+  const adultWorkerIds = new Set(workerIds);
   const ratings = workerIds.length ? await db.select({
     worker_account_id: schema.serviceWorkerReviews.worker_account_id,
     rating: sql<number>`round(avg(${schema.serviceWorkerReviews.rating})::numeric, 1)::float`,
@@ -51,7 +54,8 @@ async function listOrganizationWorkers(accountId: string) {
     id: worker.id,
     display_name: worker.common_name?.trim() || `${worker.first_name} ${worker.last_name}`.trim(),
     member_type: worker.member_type,
-    ...(ratingMap.get(worker.id) ?? { rating: null, review_count: 0 }),
+    ratings_available: adultWorkerIds.has(worker.id),
+    ...(adultWorkerIds.has(worker.id) ? (ratingMap.get(worker.id) ?? { rating: null, review_count: 0 }) : { rating: null, review_count: 0 }),
   }));
 }
 
@@ -72,6 +76,7 @@ async function attachAssignments(requestRows: any[], includeHistory = false) {
       ...(includeHistory ? { worker_account_id: row.worker.id } : {}),
       display_name: row.profile.common_name?.trim() || `${row.profile.first_name} ${row.profile.last_name}`.trim(),
       member_type: row.profile.member_type,
+      ratings_available: Date.now() - new Date(row.profile.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000,
       status: row.assignment.status,
       assigned_at: row.assignment.assigned_at,
       released_at: row.assignment.released_at,
@@ -102,7 +107,7 @@ async function attachWorkerReviews(requestRows: any[]) {
       const review = byAssignment.get(assignment.id) as any;
       return {
         ...assignment,
-        review: review?.moderation_status === 'removed' ? { id: review.id, moderation_status: review.moderation_status } : review ?? null,
+        review: assignment.ratings_available === false ? null : review?.moderation_status === 'removed' ? { id: review.id, moderation_status: review.moderation_status } : review ?? null,
       };
     }),
   }));
@@ -631,6 +636,7 @@ export async function createWorkerReview(accountId: string, requestId: string, d
     eq(t.owner_account_id, assignment.worker_account_id), eq(t.member_type, 'employee'),
   ) });
   if (!profile) throw badRequest('Only assigned employee accounts can receive a worker review');
+  if (Date.now() - new Date(profile.birthdate).getTime() < 18 * 365.2425 * 24 * 60 * 60 * 1000) throw badRequest('Worker ratings are disabled for employees under 18');
   const accepted = await db.query.serviceOffers.findFirst({ where: (t, { and, eq }) => and(
     eq(t.request_id, request.id), eq(t.provider_id, assignment.provider_id), eq(t.status, 'accepted'),
   ) });

@@ -135,11 +135,12 @@ Implemented foundation:
 - Employers can invite matching, opted-in adults to an open role. The invitation itself shares no career data; the worker may accept or decline, and chooses any career details to share when accepting. Invites expire after 14 days and pending invites are withdrawn when job-seeking visibility is turned off.
 - Workers can report a listing or block an organization; applicants and employers can report or block each other. Blocks hide the other party from discovery and invitations, revoke shared application career details, and stop messages. Workers and employers can review and undo their own blocks.
 - System admins can review job-safety reports, see the reported message when applicable, and resolve or dismiss each report with an audit-logged decision.
+- Minors cannot opt into job discovery, receive employee reputation ratings, or create externally shareable career links. Previously issued minor career links are revoked by migration.
 
 Remaining work:
 
 - Add document uploads, organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
-- Add age-aware eligibility across all workforce and service reputation flows, not only job discovery.
+- Add age and guardian-consent safeguards to future minor-safe school or service assignment categories.
 - Add explicit selected-employer visibility controls and independent profile export.
 - Add hiring outcome confirmation from both sides before creating verified employment history.
 - Add anti-spam limits and audit logs for searches, views, applications, and contact attempts.

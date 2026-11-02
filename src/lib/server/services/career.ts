@@ -17,6 +17,14 @@ async function requireEmployer(accountId: string) {
   return { account, provider };
 }
 
+async function requireAdultCareerAccount(accountId: string) {
+  const person = await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray, isNull }) => and(
+    eq(t.owner_account_id, accountId), inArray(t.member_type, ['self', 'employee']), isNull(t.deleted_at),
+  ) });
+  const ageMs = person ? Date.now() - new Date(person.birthdate).getTime() : 0;
+  if (!person || ageMs < 18 * 365.2425 * 24 * 60 * 60 * 1000) throw forbidden('Externally shareable career links are available only to adults');
+}
+
 function cleanSkills(value: unknown) {
   if (!Array.isArray(value)) throw badRequest('Skills must be a list');
   return [...new Set(value.map((item) => String(item).trim().slice(0, 80)).filter(Boolean))].slice(0, 40);
@@ -150,6 +158,7 @@ export async function resolveEmployerCareerRecord(accountId: string, recordId: s
 
 export async function createCareerShare(accountId: string, dto: any) {
   await requireCareerAccount(accountId);
+  await requireAdultCareerAccount(accountId);
   const ids: string[] = Array.isArray(dto.history_record_ids) ? [...new Set<string>(dto.history_record_ids.map((item: unknown) => String(item)))].slice(0, 20) : [];
   if (dto.include_profile !== false && !(await db.query.careerProfiles.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) }))) {
     await saveMyCareer(accountId, { headline: '', summary: '', skills: [] });
@@ -189,6 +198,11 @@ export async function getSharedCareer(token: string) {
     eq(t.token, token), isNull(t.revoked_at), gt(t.expires_at, new Date()),
   ) });
   if (!grant) throw notFound('This career link is invalid, expired, or revoked');
+  const agePerson = await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray, isNull }) => and(
+    eq(t.owner_account_id, grant.worker_account_id), inArray(t.member_type, ['self', 'employee']), isNull(t.deleted_at),
+  ) });
+  const ageMs = agePerson ? Date.now() - new Date(agePerson.birthdate).getTime() : 0;
+  if (!agePerson || ageMs < 18 * 365.2425 * 24 * 60 * 60 * 1000) throw notFound('This career link is unavailable');
   const profile = grant.include_profile ? await db.query.careerProfiles.findFirst({ where: (t, { eq }) => eq(t.account_id, grant.worker_account_id) }) : null;
   const person = grant.include_profile ? await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray }) => and(
     eq(t.owner_account_id, grant.worker_account_id), inArray(t.member_type, ['employee', 'self']),
