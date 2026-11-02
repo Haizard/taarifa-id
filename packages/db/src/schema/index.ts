@@ -607,10 +607,12 @@ export const careerHistory = pgTable('career_history', {
   worker_acknowledged_at: timestamp('worker_acknowledged_at', { withTimezone: true }),
   worker_note: text('worker_note'),
   moderation_note: text('moderation_note'),
+  source_job_application_id: uuid('source_job_application_id').references(() => jobApplications.id),
   ...timestamps,
 }, (t) => [
   index('career_history_worker_idx').on(t.worker_account_id),
   index('career_history_organization_idx').on(t.organization_account_id),
+  uniqueIndex('career_history_source_job_application_unique').on(t.source_job_application_id),
 ]);
 
 export const careerShareGrants = pgTable('career_share_grants', {

@@ -131,19 +131,19 @@ Implemented foundation:
 - Job-seeking visibility is off by default. Adult individual and employee accounts can opt in and choose job categories and locations; their current organization is excluded from candidate search.
 - Organizations submit a legal name and registration/licence reference for platform review. System admins approve or reject submissions with an audit note; only approved providers can post jobs, invite candidates, or view applicant career details.
 - Workers can browse open jobs, apply, choose which career profile fields and verified work records to share with each application, review application status, and withdraw.
-- Employers can search consenting adult candidates by category/location without seeing contact details or work history, and manage applicants through review, interview, offer, rejection, and hire states.
+- Employers can search consenting adult candidates by category/location without seeing contact details or work history, and manage applicants through review, interview, offer, and rejection states. A hire offer stays pending until the worker confirms or declines; confirmed hires create a verified career record linked to the application.
 - Applicants and the hiring organization can exchange application-scoped in-platform messages. Only those two participants can read or send; withdrawing an application closes the thread for new messages.
 - Employers can invite matching, opted-in adults to an open role. The invitation itself shares no career data; the worker may accept or decline, and chooses any career details to share when accepting. Invites expire after 14 days and pending invites are withdrawn when job-seeking visibility is turned off.
 - Workers can report a listing or block an organization; applicants and employers can report or block each other. Blocks hide the other party from discovery and invitations, revoke shared application career details, and stop messages. Workers and employers can review and undo their own blocks.
 - System admins can review job-safety reports, see the reported message when applicable, and resolve or dismiss each report with an audit-logged decision.
 - Minors cannot opt into job discovery, receive employee reputation ratings, or create externally shareable career links. Previously issued minor career links are revoked by migration.
+- Employer hire offers require worker confirmation before a verified career history record is created; declining an offer creates no career record.
 
 Remaining work:
 
 - Add document uploads, organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
 - Add age and guardian-consent safeguards to future minor-safe school or service assignment categories.
 - Workers can exclude selected verified employers from passive search and invitations while retaining direct-application access.
-- Add hiring outcome confirmation from both sides before creating verified employment history.
 - Add anti-spam limits and audit logs for searches, views, applications, and contact attempts.
 
 - Workers can turn job-seeking visibility on or off, choose categories and locations, and decide whether they are discoverable to all eligible employers or only selected organizations.

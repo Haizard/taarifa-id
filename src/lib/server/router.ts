@@ -130,6 +130,7 @@ const routes: Route[] = [
   { method: 'DELETE', segments: ['jobs', 'applications', { param: 'id' }], handler: (c) => jobsService.withdrawApplication(c.user!.sub, c.params.id) },
   { method: 'GET', segments: ['jobs', 'applications', { param: 'id' }, 'messages'], handler: (c) => jobsService.getApplicationMessages(c.user!.sub, c.params.id) },
   { method: 'POST', segments: ['jobs', 'applications', { param: 'id' }, 'messages'], handler: (c) => jobsService.sendApplicationMessage(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['jobs', 'applications', { param: 'id' }, 'hire-confirmation'], handler: (c) => jobsService.respondToHireConfirmation(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['jobs', 'invitations'], handler: (c) => jobsService.listWorkerInvitations(c.user!.sub) },
   { method: 'POST', segments: ['jobs', 'invitations', { param: 'id' }, 'respond'], handler: (c) => jobsService.respondToJobInvitation(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['jobs', { param: 'id' }, 'safety-actions'], handler: (c) => jobSafetyService.reportOrBlock(c.user!.sub, { ...c.body, job_id: c.params.id }) },

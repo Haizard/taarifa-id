@@ -5,7 +5,7 @@ import { badRequest, forbidden, notFound } from '../errors';
 import { blockedCounterpartIds, hasActiveBlock } from './job-safety';
 
 const orgTypes = ['business', 'school', 'institution'];
-const appStatuses = ['submitted', 'under_review', 'interview', 'offered', 'rejected', 'withdrawn', 'hired'];
+const appStatuses = ['submitted', 'under_review', 'interview', 'offered', 'rejected', 'withdrawn', 'hire_pending', 'offer_declined', 'hired'];
 const words = (value: unknown, max = 12) => Array.isArray(value) ? [...new Set(value.map((x) => String(x).trim().slice(0, 100)).filter(Boolean))].slice(0, max) : [];
 
 async function workerAccount(id: string) {
@@ -233,7 +233,13 @@ export async function listJobApplications(accountId: string, jobId: string) {
 export async function updateApplication(accountId: string, applicationId: string, dto: any) {
   const { account } = await verifiedEmployer(accountId);
   const status = String(dto.status ?? '');
-  if (!appStatuses.includes(status) || ['withdrawn', 'submitted'].includes(status)) throw badRequest('Choose an employer review status');
+  if (!appStatuses.includes(status) || ['withdrawn', 'submitted', 'hired', 'offer_declined'].includes(status)) throw badRequest('Choose an employer review status');
+  if (status === 'hire_pending') {
+    const current = await db.query.jobApplications.findFirst({ where: (t, { eq }) => eq(t.id, applicationId) });
+    if (!current || !['interview', 'offered', 'offer_declined'].includes(current.status)) throw badRequest('Move the applicant to interview or offered before proposing a hire');
+  }
+  const existing = await db.query.jobApplications.findFirst({ where: (t, { eq }) => eq(t.id, applicationId) });
+  if (existing && ['hired', 'withdrawn'].includes(existing.status)) throw badRequest('A confirmed or withdrawn application cannot be changed');
   const [updated] = await db.update(schema.jobApplications).set({ status, employer_note: String(dto.employer_note ?? '').trim().slice(0, 2000) || null, updated_at: new Date() })
     .where(and(
       eq(schema.jobApplications.id, applicationId),
@@ -241,6 +247,49 @@ export async function updateApplication(accountId: string, applicationId: string
     )).returning();
   if (!updated) throw notFound('Application not found');
   return updated;
+}
+
+export async function respondToHireConfirmation(accountId: string, applicationId: string, dto: any) {
+  await workerAccount(accountId);
+  const action = String(dto.action ?? '');
+  if (!['confirm', 'decline'].includes(action)) throw badRequest('Choose whether to confirm or decline the employment offer');
+  const applicationRows = await db.select({ application: schema.jobApplications, job: schema.jobPostings, provider: schema.serviceProviders })
+    .from(schema.jobApplications).innerJoin(schema.jobPostings, eq(schema.jobApplications.job_id, schema.jobPostings.id))
+    .innerJoin(schema.serviceProviders, eq(schema.jobPostings.provider_id, schema.serviceProviders.id))
+    .where(eq(schema.jobApplications.id, applicationId)).limit(1);
+  const offered = applicationRows[0];
+  if (!offered || offered.application.worker_account_id !== accountId) throw notFound('Job offer not found');
+  if (await hasActiveBlock(accountId, offered.job.organization_account_id)) throw forbidden('This employment confirmation is unavailable because one participant blocked the other');
+  if (offered.provider.verification_status !== 'verified') throw forbidden('Only a verified employer can create a confirmed employment record');
+  return db.transaction(async (tx) => {
+    const [application] = await tx.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, applicationId)).limit(1);
+    if (!application) throw notFound('Job offer not found');
+    if (application.status === 'hired' && action === 'confirm') return { status: 'hired', career_record_created: true };
+    if (application.status !== 'hire_pending') throw badRequest('This offer is no longer awaiting your confirmation');
+    if (action === 'decline') {
+      const [declined] = await tx.update(schema.jobApplications).set({ status: 'offer_declined', updated_at: new Date() })
+        .where(and(eq(schema.jobApplications.id, applicationId), eq(schema.jobApplications.status, 'hire_pending'))).returning();
+      if (!declined) throw badRequest('This offer has already been answered');
+      return { status: 'offer_declined', career_record_created: false };
+    }
+    const now = new Date();
+    const [updated] = await tx.update(schema.jobApplications).set({ status: 'hired', updated_at: now })
+      .where(and(eq(schema.jobApplications.id, applicationId), eq(schema.jobApplications.status, 'hire_pending'))).returning();
+    if (!updated) throw badRequest('This offer has already been answered');
+    await tx.insert(schema.careerHistory).values({
+      worker_account_id: accountId,
+      organization_account_id: offered.job.organization_account_id,
+      organization_name: offered.provider.display_name,
+      provider_id: offered.provider.id,
+      position: offered.job.title,
+      started_on: now.toISOString().slice(0, 10),
+      verification_status: 'verified',
+      verified_by_account_id: offered.job.organization_account_id,
+      worker_acknowledged_at: now,
+      source_job_application_id: applicationId,
+    }).onConflictDoNothing({ target: schema.careerHistory.source_job_application_id });
+    return { status: 'hired', career_record_created: true };
+  });
 }
 
 async function applicationParticipant(accountId: string, applicationId: string) {
