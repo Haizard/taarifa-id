@@ -1,14 +1,14 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-base: #f2f4f8;
+  --color-base: #f5f7f6;
   --color-glass: rgba(255, 255, 255, 0.55);
   --color-glass-strong: rgba(255, 255, 255, 0.72);
   --color-glass-subtle: rgba(255, 255, 255, 0.35);
   --color-glass-border: rgba(255, 255, 255, 0.6);
-  --color-accent-primary: #4da3ff;
-  --color-accent-secondary: #a78bfa;
-  --color-accent-success: #34c759;
+  --color-accent-primary: #047857;
+  --color-accent-secondary: #059669;
+  --color-accent-success: #16a34a;
   --color-accent-warning: #ffcc00;
   --color-accent-danger: #ff453a;
   --color-ink-primary: #1c1c1e;
@@ -40,38 +40,38 @@ body {
 }
 
 .app-bg {
-  background-color: #f2f4f8;
+  background-color: #f5f7f6;
   background-image:
-    radial-gradient(circle at 10% 6%, rgba(77, 163, 255, 0.14), transparent 38%),
-    radial-gradient(circle at 90% 14%, rgba(167, 139, 250, 0.16), transparent 40%),
-    radial-gradient(circle at 14% 92%, rgba(255, 204, 0, 0.1), transparent 36%),
-    radial-gradient(circle at 88% 92%, rgba(255, 69, 58, 0.08), transparent 40%);
+    radial-gradient(circle at 10% 6%, rgba(16, 185, 129, 0.1), transparent 38%),
+    radial-gradient(circle at 90% 14%, rgba(45, 212, 191, 0.12), transparent 40%),
+    radial-gradient(circle at 14% 92%, rgba(250, 204, 21, 0.08), transparent 36%),
+    radial-gradient(circle at 88% 92%, rgba(16, 185, 129, 0.06), transparent 40%);
   background-attachment: fixed;
   min-height: 100vh;
 }
 
 .glass {
-  background-color: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px rgba(31, 41, 55, 0.1);
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.055);
   border-radius: 20px;
 }
 
 .glass-strong {
-  background-color: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 16px 48px rgba(31, 41, 55, 0.16);
+  background-color: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.09);
   border-radius: 28px;
 }
 
 .glass-subtle {
-  background-color: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 10px;
+  background-color: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
 }
 
 .hairline {
@@ -156,6 +156,31 @@ body {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+form input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']),
+form select,
+form textarea {
+  border-color: #dbe3ec;
+  border-radius: 12px;
+  background-color: #fff;
+  color: #0f172a;
+  text-align: left;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+form input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset']):focus,
+form select:focus,
+form textarea:focus {
+  border-color: #10a477;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 164, 119, 0.12);
+}
+
+form input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='submit']):not([type='button']):not([type='reset'])::placeholder,
+form textarea::placeholder {
+  color: #94a3b8;
 }
 
 @media print {

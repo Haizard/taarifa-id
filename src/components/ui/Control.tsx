@@ -12,15 +12,15 @@ export function SegmentedControl<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('glass no-scrollbar flex overflow-x-auto rounded-button p-1', className)}>
+    <div className={cn('no-scrollbar flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-100/80 p-1', className)}>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'btn-scale shrink-0 whitespace-nowrap rounded-[10px] px-3 py-2 text-[15px] font-medium transition-colors',
-            value === opt.value ? 'bg-white shadow-sm text-ink-primary' : 'text-ink-secondary',
+            'shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors',
+            value === opt.value ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200/80' : 'text-slate-500 hover:text-slate-800',
           )}
         >
           {opt.label}
@@ -60,8 +60,8 @@ export function ProgressRing({ percent, size = 96, stroke = 8, label }: { percen
 
 export function EmptyState({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) {
   return (
-    <div className="glass flex flex-col items-center justify-center p-10 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-glass-subtle text-ink-tertiary">
+    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-10">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
         {icon}
       </div>
       <div className="text-[17px] font-semibold text-ink-primary">{title}</div>

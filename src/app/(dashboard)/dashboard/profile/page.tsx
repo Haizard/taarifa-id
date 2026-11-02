@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Plus, X, UserRound, Camera } from 'lucide-react';
+import { Plus, X, UserRound, Camera, ShieldCheck } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
@@ -96,6 +96,11 @@ export default function ProfileEditor() {
   return (
     <div className="min-w-0">
       <LargeTitleHeader title="Profile" subtitle={`${user?.account_type} account`} />
+
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 text-emerald-950">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700"><ShieldCheck size={18} /></span>
+        <div><div className="text-sm font-bold">Your profile details stay under your control</div><p className="mt-1 text-[13px] leading-5 text-emerald-950/75">Profile details are not attached to service requests. A request shares the answers and location you enter for that request. Public ID and QR profile visibility is managed separately.</p></div>
+      </div>
 
       {user?.account_type !== 'individual' && entity && (
         <EntityForm entity={entity} onSave={entityMutation.mutate} entityType={user!.account_type} />
@@ -222,6 +227,7 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
     residence: profile.residence ?? {},
     emergency_contacts: profile.emergencyContacts ?? [],
     desperate_conditions: profile.desperateConditions ?? [],
+    assets: profile.assets ?? [],
     employment: profile.employment
       ? { employment_type: profile.employment.employment_type, employer: profile.employment.employers?.[0] ?? {}, supervisor: profile.employment.supervisors?.[0] ?? {} }
       : { employment_type: 'Not_Working', employer: {}, supervisor: {} },
@@ -257,6 +263,15 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
       return { ...s, desperate_conditions: list };
     });
   const addDesperate = () => setSub((s: any) => ({ ...s, desperate_conditions: [...(s.desperate_conditions ?? []), {}] }));
+  const removeDesperate = (i: number) => setSub((s: any) => ({ ...s, desperate_conditions: (s.desperate_conditions ?? []).filter((_: any, j: number) => j !== i) }));
+  const updateVehicle = (i: number, k: string, v: string) => setSub((s: any) => {
+    const assets = [...(s.assets ?? [])];
+    const current = assets[i] ?? { asset_type: 'vehicle', label: `Vehicle ${i + 1}`, details: {} };
+    assets[i] = { ...current, asset_type: 'vehicle', details: { ...(current.details ?? {}), [k]: v } };
+    return { ...s, assets };
+  });
+  const addVehicle = () => setSub((s: any) => ({ ...s, assets: [...(s.assets ?? []), { asset_type: 'vehicle', label: `Vehicle ${(s.assets?.length ?? 0) + 1}`, details: {} }] }));
+  const removeVehicle = (i: number) => setSub((s: any) => ({ ...s, assets: (s.assets ?? []).filter((_: any, j: number) => j !== i) }));
 
   return (
     <div>
@@ -269,7 +284,8 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
             { value: 'health', label: 'Health' },
             { value: 'residence', label: 'Residence' },
             { value: 'emergency', label: 'Emergency' },
-            { value: 'desperate', label: 'Desperate' },
+            { value: 'desperate', label: 'Medical' },
+            { value: 'vehicles', label: 'Vehicles' },
             ...(profile.member_type !== 'underage' ? [{ value: 'employment', label: 'Work' }] : []),
           ]}
         />
@@ -327,6 +343,7 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
 
       {tab === 'health' && (
         <>
+          <div className="mb-3 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-[13px] leading-5 text-sky-950"><strong>Health information and sharing.</strong> Health details are not automatically attached to service requests. Basic blood group, height, and weight may appear on the public ID/QR profile under existing visibility settings. Detailed condition records below are excluded from public QR profiles.</div>
           <IOSListGroup title="Basic health details">
             <IOSSelect label="Blood group" value={sub.health?.blood_group ?? ''} onChange={(v) => setHealth('blood_group', v)}>
               <option value="">—</option>
@@ -338,6 +355,20 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
             <IOSInput label="Weight (kg)" inputMode="numeric" value={sub.health?.weight ?? ''} onChange={(e) => setHealth('weight', e.target.value)} />
           </IOSListGroup>
           <GlassButton onClick={() => onSaveSubForms({ health: sub.health })}>Save health details</GlassButton>
+        </>
+      )}
+
+      {tab === 'vehicles' && (
+        <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4">
+            <div><div className="text-sm font-bold text-emerald-950">Your vehicle records</div><p className="mt-1 text-[13px] leading-5 text-emerald-950/75">Keep details ready for breakdown, repair, towing, or recovery requests. These records stay on your profile and are not automatically sent to garages.</p></div>
+            <button type="button" onClick={addVehicle} disabled={(sub.assets?.length ?? 0) >= 20} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[13px] font-semibold text-emerald-800 disabled:opacity-50"><Plus size={15}/> Add vehicle</button>
+          </div>
+          {!sub.assets?.length && <div className="mb-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center"><div className="font-semibold text-slate-800">No vehicles added</div><p className="mt-1 text-[13px] text-slate-500">Add a car or other vehicle so its details are easy to use when requesting roadside help.</p></div>}
+          <div className="space-y-4">{sub.assets?.map((asset: any, i: number) => <section key={asset.id ?? i} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div className="font-semibold text-slate-900">{asset.details?.make_model || `Vehicle ${i + 1}`}</div><button type="button" onClick={() => removeVehicle(i)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50">Remove</button></div><div className="grid gap-3 p-4 sm:grid-cols-2">
+            {[['make_model','Make and model'],['year','Year'],['registration_number','Registration number'],['vehicle_type','Vehicle type'],['color','Color'],['condition','Current condition'],['current_issue','Current issue or warning'],['notes','Other useful details']].map(([key,label])=><label key={key} className={`block text-xs font-semibold text-slate-500 ${key === 'current_issue' || key === 'notes' ? 'sm:col-span-2' : ''}`}>{label}{key === 'notes' || key === 'current_issue' ? <textarea value={asset.details?.[key] ?? ''} onChange={(e) => updateVehicle(i,key,e.target.value)} maxLength={2000} className="mt-1.5 min-h-20 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/> : <input value={asset.details?.[key] ?? ''} onChange={(e) => updateVehicle(i,key,e.target.value)} maxLength={160} className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>}</label>)}
+          </div></section>)}</div>
+          {!!sub.assets?.length && <GlassButton className="mt-4" onClick={() => onSaveSubForms({ assets: sub.assets.map((asset: any, i: number) => ({ ...asset, asset_type: 'vehicle', label: asset.details?.make_model?.trim() || `Vehicle ${i + 1}` })) })}>Save vehicle details</GlassButton>}
         </>
       )}
 
@@ -396,27 +427,32 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
 
       {tab === 'desperate' && (
         <>
-          <div className="mb-3 px-1">
-            <button onClick={addDesperate} className="flex items-center gap-1 rounded-button bg-accent-primary/10 px-3 py-1.5 text-[13px] font-medium text-accent-primary">
-              <Plus size={14} /> Add acute condition
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50/80 p-4">
+            <div><div className="text-sm font-bold text-rose-950">Detailed medical conditions</div><p className="mt-1 max-w-2xl text-[13px] leading-5 text-rose-950/75">Add any illness or condition in your own words, including HIV, malaria, cancer, or another diagnosis. Record only what you choose. These detailed records are not shown on public QR profiles or automatically attached to service requests.</p><p className="mt-2 text-[12px] leading-5 text-rose-950/75">To tell a hospital, enter the relevant details in that hospital service’s request form. Review each form and share only information you are comfortable sending.</p></div>
+            <button type="button" onClick={addDesperate} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3 py-2 text-[13px] font-semibold text-rose-800 hover:bg-rose-50">
+              <Plus size={14} /> Add health condition
             </button>
           </div>
+          <datalist id="acute-condition-options">{lookups?.acute_conditions?.map((a: any) => <option key={a.code} value={a.label}>{a.label}</option>)}</datalist>
           {sub.desperate_conditions?.map((c: any, i: number) => (
-            <IOSListGroup key={i} title={`Acute condition ${i + 1}`}>
-              <IOSSelect label="Condition" value={c.acute_condition_code ?? ''} onChange={(v) => updateDesperate(i, 'acute_condition_code', v)}>
-                <option value="">—</option>
-                {lookups?.acute_conditions?.map((a: any) => (
-                  <option key={a.code} value={a.code}>{a.label}</option>
-                ))}
-              </IOSSelect>
-              <IOSTextArea label="Notes" value={c.notes ?? ''} onChange={(e) => updateDesperate(i, 'notes', e.target.value)} />
+            <IOSListGroup key={c.id ?? i} title={`Condition ${i + 1}`}>
+              <div className="flex justify-end border-b border-slate-100 px-4 py-2"><button type="button" onClick={() => removeDesperate(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"><X size={13}/> Remove condition</button></div>
+              <IOSInput label="Condition or illness" maxLength={100} list="acute-condition-options" placeholder="Enter a condition name" value={c.acute_condition_code ?? ''} onChange={(e) => updateDesperate(i, 'acute_condition_code', e.target.value)} />
+              <IOSInput label="Current status" maxLength={100} placeholder="For example: current, in treatment, follow-up, resolved" value={c.condition_status ?? ''} onChange={(e) => updateDesperate(i, 'condition_status', e.target.value)} />
+              <IOSInput label="Stage or severity (if known)" maxLength={100} placeholder="Enter details provided by your clinician" value={c.stage ?? ''} onChange={(e) => updateDesperate(i, 'stage', e.target.value)} />
+              <IOSInput label="Date diagnosed (optional)" type="date" value={c.diagnosed_on ?? ''} onChange={(e) => updateDesperate(i, 'diagnosed_on', e.target.value)} />
+              <IOSTextArea label="Symptoms, history, or other details" maxLength={5000} value={c.notes ?? ''} onChange={(e) => updateDesperate(i, 'notes', e.target.value)} />
+              <IOSTextArea label="Onset or recurrence details" maxLength={2000} value={c.occurrence ?? ''} onChange={(e) => updateDesperate(i, 'occurrence', e.target.value)} />
+              <IOSTextArea label="Treatment, medication, or care plan" maxLength={5000} value={c.treatment_details ?? ''} onChange={(e) => updateDesperate(i, 'treatment_details', e.target.value)} />
+              <IOSTextArea label="Emergency instructions (optional)" maxLength={2000} value={c.unconscious_treatment_remedy ?? ''} onChange={(e) => updateDesperate(i, 'unconscious_treatment_remedy', e.target.value)} />
               <IOSInput label="Treatment hospital" value={c.treatment_hospital ?? ''} onChange={(e) => updateDesperate(i, 'treatment_hospital', e.target.value)} />
               <IOSInput label="Hospital contacts" value={c.hospital_contacts ?? ''} onChange={(e) => updateDesperate(i, 'hospital_contacts', e.target.value)} />
               <IOSInput label="Doctor name" value={c.doctor_name ?? ''} onChange={(e) => updateDesperate(i, 'doctor_name', e.target.value)} />
               <IOSInput label="Doctor contacts" value={c.doctor_contacts ?? ''} onChange={(e) => updateDesperate(i, 'doctor_contacts', e.target.value)} />
             </IOSListGroup>
           ))}
-          <GlassButton onClick={() => onSaveSubForms({ desperate_conditions: sub.desperate_conditions })}>Save desperate conditions</GlassButton>
+          {!sub.desperate_conditions?.length && <div className="mb-4 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center"><div className="font-semibold text-slate-800">No medical conditions recorded</div><p className="mt-1 text-[13px] text-slate-500">Add a condition only if you want it kept in your private profile.</p></div>}
+          <GlassButton onClick={() => onSaveSubForms({ desperate_conditions: sub.desperate_conditions })}>Save medical details</GlassButton>
         </>
       )}
 

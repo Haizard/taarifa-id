@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsISO8601, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsISO8601, IsObject, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 
 export class MobileNumberDto {
   @IsString()
@@ -54,6 +54,22 @@ export class DesperateConditionDto {
   acute_condition_code?: string;
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  condition_status?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  stage?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  diagnosed_on?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  treatment_details?: string;
+  @IsOptional()
+  @IsString()
   notes?: string;
   @IsOptional()
   @IsString()
@@ -79,6 +95,15 @@ export class DesperateConditionDto {
   @IsOptional()
   @IsString()
   doctor_contacts?: string;
+}
+
+export class ProfileAssetDto {
+  @IsString()
+  asset_type!: string;
+  @IsString()
+  label!: string;
+  @IsObject()
+  details!: Record<string, string>;
 }
 
 export class EmergencyContactDto {
@@ -243,6 +268,12 @@ export class UpsertSubFormsDto {
   @ValidateNested({ each: true })
   @Type(() => DesperateConditionDto)
   desperate_conditions?: DesperateConditionDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProfileAssetDto)
+  assets?: ProfileAssetDto[];
 
   @IsOptional()
   @IsArray()

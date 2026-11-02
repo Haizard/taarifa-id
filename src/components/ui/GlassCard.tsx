@@ -31,16 +31,15 @@ export function GlassButton({
   variant?: 'primary' | 'secondary' | 'destructive' | 'ghost';
 }) {
   const styles = {
-    primary:
-      'bg-gradient-to-br from-accent-primary to-accent-secondary text-white shadow-glass border border-white/25',
-    secondary: 'glass text-accent-primary',
-    destructive: 'bg-glass text-accent-danger border border-glass-border',
+    primary: 'border border-emerald-700 bg-emerald-700 text-white shadow-[0_8px_20px_rgba(4,120,87,.18)] hover:bg-emerald-800 hover:border-emerald-800',
+    secondary: 'border border-slate-200 bg-white text-emerald-800 shadow-sm hover:border-emerald-200 hover:bg-emerald-50',
+    destructive: 'border border-rose-200 bg-white text-rose-700 hover:bg-rose-50',
     ghost: 'bg-transparent text-accent-primary hover:bg-glass-subtle',
   }[variant];
   return (
     <button
       className={cn(
-        'btn-scale h-[50px] w-full rounded-button px-5 font-semibold text-[17px] transition-colors disabled:opacity-50',
+        'btn-scale min-h-[48px] w-full rounded-xl px-5 py-3 font-semibold text-[15px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         styles,
         className,
       )}
@@ -103,8 +102,8 @@ export function LargeTitleHeader({ title, subtitle, right }: { title: string; su
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 px-1 pb-5 pt-2">
       <div className="min-w-0">
-        <h1 className="break-words text-[34px] font-bold leading-tight tracking-[-0.4px] text-ink-primary">{title}</h1>
-        {subtitle && <p className="mt-1 break-words text-[15px] text-ink-secondary">{subtitle}</p>}
+        <h1 className="break-words text-[28px] font-bold leading-tight tracking-[-0.5px] text-slate-900 sm:text-[32px]">{title}</h1>
+        {subtitle && <p className="mt-1 break-words text-[14px] text-slate-500">{subtitle}</p>}
       </div>
       {right && <div className="min-w-0 shrink-0">{right}</div>}
     </div>
@@ -120,8 +119,8 @@ export function SectionLabel({ children, tone = 'blue' }: { children: React.Reac
     green: 'bg-accent-success',
   }[tone];
   return (
-    <div className="mb-2 mt-6 flex items-center gap-1.5 px-1 text-[13px] font-medium uppercase tracking-[0.5px] text-ink-secondary">
-      <span className={cn('h-1.5 w-1.5 rounded-full', dot)} />
+    <div className="mb-2 mt-6 flex items-center gap-2 px-1 text-[11px] font-bold uppercase tracking-[.13em] text-slate-500">
+      <span className={cn('h-2 w-2 rounded-full', dot)} />
       {children}
     </div>
   );

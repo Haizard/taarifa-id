@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 import { GlassButton, LargeTitleHeader, SectionLabel, Badge } from '@/components/ui/GlassCard';
 import { ProviderMark } from '@/components/marketplace/ProviderMark';
 
-type Field = { key: string; label: string; type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox'; required?: boolean; options?: string[] };
+type Field = { key: string; label: string; help_text?: string; type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox'; required?: boolean; options?: string[] };
 type Service = {
   id: string; title: string; description: string | null; delivery_mode: string; price_type: string;
   price_amount: string | null; form_fields: Field[];
@@ -23,11 +23,13 @@ export default function ServiceRequestPage() {
   const [sharing, setSharing] = useState<'selected_provider' | 'matching_providers'>('selected_provider');
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [location, setLocation] = useState({ region: '', district: '', ward: '' });
+  const [profileId, setProfileId] = useState('');
+  const { data: profiles = [] } = useQuery({ queryKey: ['profiles-for-service-request'], queryFn: () => api.get<Array<{ id: string; first_name: string; last_name: string; member_type: string }>>('/profiles') });
   const { data: service, isLoading } = useQuery({ queryKey: ['marketplace-service', serviceId], queryFn: () => api.get<Service>(`/marketplace/services/${serviceId}`) });
   const mutation = useMutation({
     mutationFn: () => {
       const { _summary, ...formAnswers } = answers;
-      return api.post('/marketplace/requests', { service_id: serviceId, sharing_scope: sharing, summary: _summary, answers: formAnswers, ...location });
+      return api.post('/marketplace/requests', { service_id: serviceId, profile_id: profileId || undefined, sharing_scope: sharing, summary: _summary, answers: formAnswers, ...location });
     },
     onSuccess: () => { toast.success('Request sent'); router.push('/dashboard/requests'); },
     onError: (e: any) => toast.error(e.message),
@@ -69,9 +71,11 @@ export default function ServiceRequestPage() {
 
       <SectionLabel tone="lavender">Request details</SectionLabel>
       <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="glass space-y-4 p-5">
+        {profiles.length > 0 && <label className="block text-[13px] font-medium text-ink-secondary">Who is this request for? <span className="font-normal text-slate-500">(optional)</span><select value={profileId} onChange={(e) => setProfileId(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[15px] text-ink-primary"><option value="">My account / no profile selected</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.first_name} {profile.last_name} · {profile.member_type}</option>)}</select><span className="mt-1 block text-[11px] font-normal text-slate-500">This helps you organize requests for family members. Providers see the request answers you send, not the saved profile record.</span></label>}
         {(service.form_fields ?? []).map((field) => (
           <label key={field.key} className="block text-[13px] font-medium text-ink-secondary">
             {field.label}{field.required && <span className="ml-1 text-accent-danger">*</span>}
+            {field.help_text && <span className="mt-1 block text-[12px] font-normal leading-5 text-slate-500">{field.help_text}</span>}
             {field.type === 'textarea' ? (
               <textarea required={field.required} maxLength={5000} value={String(answers[field.key] ?? '')} onChange={(e) => setAnswer(field.key, e.target.value)} className="mt-1 min-h-24 w-full rounded-xl border border-glass-border bg-white/50 px-3 py-2 text-[15px] text-ink-primary outline-none focus:ring-2 focus:ring-accent-primary" />
             ) : field.type === 'select' ? (

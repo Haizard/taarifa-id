@@ -36,6 +36,7 @@ export const complaintStatusEnum = pgEnum('complaint_status', ['open', 'in_revie
 export type ServiceFormField = {
   key: string;
   label: string;
+  help_text?: string;
   type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
   required?: boolean;
   options?: string[];
@@ -157,6 +158,10 @@ export const desperateConditions = pgTable('desperate_conditions', {
   id: uuid('id').primaryKey().defaultRandom(),
   person_profile_id: uuid('person_profile_id').notNull().references(() => personProfiles.id),
   acute_condition_code: varchar('acute_condition_code', { length: 100 }),
+  condition_status: varchar('condition_status', { length: 100 }),
+  stage: varchar('stage', { length: 100 }),
+  diagnosed_on: varchar('diagnosed_on', { length: 40 }),
+  treatment_details: text('treatment_details'),
   notes: text('notes'),
   occurrence: text('occurrence'),
   unconscious_treatment_remedy: text('unconscious_treatment_remedy'),
@@ -168,6 +173,15 @@ export const desperateConditions = pgTable('desperate_conditions', {
   doctor_contacts: varchar('doctor_contacts', { length: 200 }),
   ...timestamps,
 });
+
+export const profileAssets = pgTable('profile_assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  person_profile_id: uuid('person_profile_id').notNull().references(() => personProfiles.id),
+  asset_type: varchar('asset_type', { length: 40 }).notNull(),
+  label: varchar('label', { length: 160 }).notNull(),
+  details: jsonb('details').$type<Record<string, string>>().notNull().default({}),
+  ...timestamps,
+}, (t) => [index('profile_assets_profile_idx').on(t.person_profile_id)]);
 
 export const emergencyContacts = pgTable('emergency_contacts', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -936,6 +950,7 @@ export const personProfilesRelations = relations(personProfiles, ({ one, many })
   health: one(basicHealthDetails, { fields: [personProfiles.id], references: [basicHealthDetails.person_profile_id] }),
   residence: one(residences, { fields: [personProfiles.id], references: [residences.person_profile_id] }),
   desperateConditions: many(desperateConditions),
+  assets: many(profileAssets),
   emergencyContacts: many(emergencyContacts),
   employment: one(employmentDetails, { fields: [personProfiles.id], references: [employmentDetails.person_profile_id] }),
 }));
@@ -964,6 +979,10 @@ export const mobileNumbersRelations = relations(mobileNumbers, ({ one }) => ({
 
 export const desperateConditionsRelations = relations(desperateConditions, ({ one }) => ({
   profile: one(personProfiles, { fields: [desperateConditions.person_profile_id], references: [personProfiles.id] }),
+}));
+
+export const profileAssetsRelations = relations(profileAssets, ({ one }) => ({
+  profile: one(personProfiles, { fields: [profileAssets.person_profile_id], references: [personProfiles.id] }),
 }));
 
 export const emergencyContactsRelations = relations(emergencyContacts, ({ one }) => ({

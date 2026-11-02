@@ -6,6 +6,7 @@ import { ArrowDownRight, ArrowRight, BadgeCheck, Building2, ChevronLeft, Chevron
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ProviderMark } from '@/components/marketplace/ProviderMark';
+import { PublicFooter, PublicHeader } from '@/components/layout/PublicHeader';
 
 type Category = 'hospital' | 'school' | 'garage';
 type Service = { id: string; title: string; description: string | null; delivery_mode: string; price_type: string; price_amount: string | null; provider: { category: Category; display_name: string; logo_url?: string | null; verification_status: string; region: string | null; district: string | null; rating?: number; review_count?: number } };
@@ -39,23 +40,7 @@ export default function Home() {
   const featured = (servicesQuery.data ?? []).slice(0, 3);
 
   return <div className="min-h-screen bg-[#f7f8fa] text-slate-900">
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" aria-label="Taarifa ID home" className="flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-lg font-bold text-white">T</span>
-          <span className="text-[17px] font-extrabold tracking-tight">TAARIFA <span className="text-emerald-700">ID</span></span>
-        </Link>
-        <nav className="hidden items-center gap-7 text-[14px] font-medium text-slate-600 md:flex">
-          <Link href="/services" className="transition hover:text-emerald-700">Explore services</Link>
-          <a href="#how-it-works" className="transition hover:text-emerald-700">How it works</a>
-          <a href="#for-organizations" className="transition hover:text-emerald-700">For organizations</a>
-        </nav>
-        <div className="flex items-center gap-2">
-          <Link href="/login" className="rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-100 sm:px-4 sm:text-sm">Log in</Link>
-          <Link href="/register" className="rounded-lg bg-emerald-700 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-800 sm:px-4 sm:text-sm">Create account</Link>
-        </div>
-      </div>
-    </header>
+    <PublicHeader />
 
     <main>
       <section className="relative mx-auto mt-5 h-[530px] max-w-7xl overflow-hidden rounded-[28px] bg-slate-900 sm:mx-6 lg:mx-auto lg:h-[570px]">
@@ -112,9 +97,9 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="how-it-works" className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:px-10">
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:px-10">
         <div className="grid items-center gap-9 lg:grid-cols-[.8fr_1.2fr]">
-          <div><div className="text-[11px] font-bold uppercase tracking-[.16em] text-emerald-700">Simple and in your control</div><h2 className="mt-2 text-[30px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[36px]">From need to service, in a few clear steps.</h2><p className="mt-4 max-w-md text-[15px] leading-7 text-slate-600">Taarifa ID helps you connect with providers while keeping your saved information private and sharing only what a request needs.</p><Link href="/services" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800">Find a service <ArrowRight size={16} /></Link></div>
+          <div><div className="text-[11px] font-bold uppercase tracking-[.16em] text-emerald-700">Simple and in your control</div><h2 className="mt-2 text-[30px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[36px]">From need to service, in a few clear steps.</h2><p className="mt-4 max-w-md text-[15px] leading-7 text-slate-600">Taarifa ID helps you connect with providers while keeping your saved information private and sharing only what a request needs.</p><Link href="/how-it-works" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-800">See how it works <ArrowRight size={16} /></Link></div>
           <div className="grid gap-3 sm:grid-cols-3">{[
             { n: '01', title: 'Choose a service', text: 'Browse providers and find the service that matches your need.', icon: Search },
             { n: '02', title: 'Share your request', text: 'Send the provider only the details needed to respond.', icon: ShieldCheck },
@@ -123,13 +108,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="for-organizations" className="mx-auto max-w-7xl px-4 pb-16 sm:px-8 lg:px-10">
-        <div className="flex flex-col gap-6 rounded-[24px] bg-emerald-950 px-6 py-8 text-white sm:flex-row sm:items-center sm:justify-between sm:px-9 sm:py-9"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10"><Building2 size={23} /></span><div><h2 className="text-[22px] font-bold">Are you a service provider?</h2><p className="mt-2 max-w-xl text-[14px] leading-6 text-emerald-100/80">Create your organization profile, publish services, manage incoming requests, and build a track record clients can review.</p></div></div><Link href="/register?type=business" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-50">Join as a provider <ArrowRight size={16} /></Link></div>
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-8 lg:px-10">
+        <div className="flex flex-col gap-6 rounded-[24px] bg-emerald-950 px-6 py-8 text-white sm:flex-row sm:items-center sm:justify-between sm:px-9 sm:py-9"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10"><Building2 size={23} /></span><div><h2 className="text-[22px] font-bold">Are you a service provider?</h2><p className="mt-2 max-w-xl text-[14px] leading-6 text-emerald-100/80">Create your organization profile, publish services, manage incoming requests, and build a track record clients can review.</p></div></div><Link href="/organizations" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-900 hover:bg-emerald-50">For organizations <ArrowRight size={16} /></Link></div>
       </section>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-7 text-[13px] text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10"><Link href="/" className="flex items-center gap-2 font-bold text-slate-800"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-700 text-xs text-white">T</span>TAARIFA ID</Link><span>Services, organizations, and information in one connected place.</span><div className="flex gap-4"><Link href="/services" className="hover:text-emerald-700">Services</Link><Link href="/login" className="hover:text-emerald-700">Log in</Link><Link href="/register" className="hover:text-emerald-700">Create account</Link></div></div>
-      </footer>
+      <PublicFooter />
     </main>
   </div>;
 }

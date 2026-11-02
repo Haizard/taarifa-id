@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Badge, type AccentTone } from '@/components/ui/GlassCard';
 import { ProviderMark } from '@/components/marketplace/ProviderMark';
+import { PublicFooter, PublicHeader } from '@/components/layout/PublicHeader';
 
 type Category = 'hospital' | 'school' | 'garage';
 type Service = { id: string; title: string; description: string | null; delivery_mode: string; price_type: string; price_amount: string | null; provider: { category: Category; display_name: string; logo_url?: string | null; verification_status: string; region: string | null; district: string | null; rating?: number; review_count?: number } };
@@ -37,9 +38,7 @@ export default function PublicServicesPage() {
 
   return (
     <div className="app-bg min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between"><Link href="/" className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 font-bold text-white">T</span><span className="font-bold text-slate-900">TAARIFA ID</span></Link><div className="flex gap-2"><Link href="/login" className="rounded-lg px-4 py-2 text-[14px] font-semibold text-slate-700 hover:bg-slate-100">Log in</Link><Link href="/register" className="rounded-lg bg-emerald-700 px-4 py-2 text-[14px] font-semibold text-white">Join</Link></div></div>
-      </header>
+      <PublicHeader />
       <main className="mx-auto max-w-7xl px-4 py-9 sm:px-8 lg:px-10">
         <div className="mb-7 rounded-[24px] bg-emerald-950 px-6 py-8 text-white sm:px-9"><div className="text-[11px] font-bold uppercase tracking-[.16em] text-emerald-300">Taarifa ID marketplace</div><div className="mt-2 flex flex-wrap items-end justify-between gap-5"><div><h1 className="text-[32px] font-bold tracking-tight sm:text-[38px]">Find a service</h1><p className="mt-2 max-w-xl text-[14px] leading-6 text-emerald-50/75">Browse trusted local organizations and compare their services. Your saved information stays private until you choose to send a request.</p></div><Link href="/register" className="rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-emerald-900">Join the platform <ArrowRight className="ml-1 inline" size={15} /></Link></div></div>
         <label className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-slate-400 shadow-sm"><Search size={19} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by service, provider, or location" className="min-w-0 flex-1 bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400" /></label>
@@ -52,6 +51,7 @@ export default function PublicServicesPage() {
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[14px] font-bold text-slate-900">{service.price_type === 'fixed' && service.price_amount ? `${Number(service.price_amount).toLocaleString()} TZS` : service.price_type === 'free' ? 'Free' : 'Quote from provider'}</span><Link href={user ? `/dashboard/services/${service.id}` : '/login'} className="inline-flex items-center gap-1 text-[13px] font-bold text-emerald-700">{user ? 'View service' : 'Sign in'} <ArrowRight size={15} /></Link></div>
         </article>)}</div>}
       </main>
+      <PublicFooter />
     </div>
   );
 }

@@ -11,6 +11,7 @@ const profileWithRelations = {
   health: true,
   residence: true,
   desperateConditions: true,
+  assets: true,
   emergencyContacts: true,
   employment: { with: { employers: true, supervisors: true } },
 } as const;
@@ -158,10 +159,51 @@ export async function upsertSubForms(accountId: string, profileId: string, dto: 
   }
 
   if (dto.desperate_conditions) {
+    if (dto.desperate_conditions.length > 30) throw badRequest('A profile can store up to 30 health conditions');
     await db.delete(schema.desperateConditions).where(eq(schema.desperateConditions.person_profile_id, profileId));
     for (const c of dto.desperate_conditions) {
-      await db.insert(schema.desperateConditions).values({ person_profile_id: profileId, ...c });
+      const clean = (value: unknown, limit: number) => typeof value === 'string' ? value.trim().slice(0, limit) || null : null;
+      await db.insert(schema.desperateConditions).values({
+        person_profile_id: profileId,
+        acute_condition_code: clean(c.acute_condition_code, 100),
+        condition_status: clean(c.condition_status, 100),
+        stage: clean(c.stage, 100),
+        diagnosed_on: clean(c.diagnosed_on, 40),
+        treatment_details: clean(c.treatment_details, 5000),
+        notes: clean(c.notes, 5000),
+        occurrence: clean(c.occurrence, 2000),
+        unconscious_treatment_remedy: clean(c.unconscious_treatment_remedy, 2000),
+        treatment_hospital: clean(c.treatment_hospital, 200),
+        hospital_region: clean(c.hospital_region, 100),
+        hospital_district: clean(c.hospital_district, 100),
+        hospital_contacts: clean(c.hospital_contacts, 200),
+        doctor_name: clean(c.doctor_name, 150),
+        doctor_contacts: clean(c.doctor_contacts, 200),
+      });
     }
+  }
+
+  if (dto.assets) {
+    if (dto.assets.length > 20) throw badRequest('A profile can store up to 20 vehicles');
+    const allowedVehicleFields = new Set(['make_model', 'year', 'registration_number', 'vehicle_type', 'color', 'condition', 'current_issue', 'notes']);
+    const assets = dto.assets.map((asset) => {
+      if (!asset || typeof asset !== 'object' || asset.asset_type !== 'vehicle') throw badRequest('Unsupported profile asset type');
+      const details: Record<string, string> = {};
+      for (const [key, raw] of Object.entries(asset.details ?? {})) {
+        if (!allowedVehicleFields.has(key)) continue;
+        if (typeof raw !== 'string') continue;
+        const maxLength = key === 'notes' || key === 'current_issue' ? 2000 : 160;
+        const value = raw.trim().slice(0, maxLength);
+        if (value) details[key] = value;
+      }
+      const label = String(asset.label ?? '').trim().slice(0, 160);
+      if (!label) throw badRequest('Each vehicle needs a name or description');
+      return { person_profile_id: profileId, asset_type: 'vehicle', label, details };
+    });
+    await db.transaction(async (tx) => {
+      await tx.delete(schema.profileAssets).where(eq(schema.profileAssets.person_profile_id, profileId));
+      if (assets.length) await tx.insert(schema.profileAssets).values(assets);
+    });
   }
 
   if (dto.emergency_contacts) {

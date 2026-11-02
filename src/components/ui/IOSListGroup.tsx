@@ -4,9 +4,9 @@ export function IOSListGroup({ title, children, className }: { title?: string; c
   return (
     <div className={cn('mb-6', className)}>
       {title && (
-        <div className="mb-2 px-1 text-[13px] font-medium uppercase tracking-[0.5px] text-ink-secondary">{title}</div>
+        <div className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[.14em] text-slate-500">{title}</div>
       )}
-      <div className="glass overflow-hidden p-0">{children}</div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_28px_rgba(15,23,42,.045)]">{children}</div>
     </div>
   );
 }
@@ -28,7 +28,7 @@ export function IOSListRow({
 }) {
   return (
     <div
-      className={cn('flex min-h-[44px] items-center gap-3 border-b border-separator px-4 py-3 last:border-b-0', onClick && 'btn-scale cursor-pointer', className)}
+      className={cn('flex min-h-[52px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0', onClick && 'cursor-pointer transition-colors hover:bg-slate-50 active:bg-slate-100', className)}
       onClick={onClick}
     >
       {label && <div className="min-w-0 flex-1 break-words text-[17px] text-ink-primary">{label}</div>}
@@ -69,13 +69,13 @@ export function IOSInput({
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
   return (
-    <div className="border-b border-separator px-4 py-3 last:border-b-0">
-      {label && <div className="mb-1 text-[13px] text-ink-secondary">{label}</div>}
+    <label className="block border-b border-slate-100 px-4 py-3.5 last:border-b-0">
+      {label && <div className="mb-1.5 text-[12px] font-semibold text-slate-500">{label}</div>}
       <input
-        className={cn('w-full border-0 bg-transparent text-right text-[17px] text-ink-primary placeholder:text-ink-tertiary focus:outline-none', className)}
+        className={cn('block w-full border-0 bg-transparent p-0 text-left text-[15px] text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0', className)}
         {...props}
       />
-    </div>
+    </label>
   );
 }
 
@@ -85,13 +85,13 @@ export function IOSTextArea({
   ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
   return (
-    <div className="border-b border-separator px-4 py-3 last:border-b-0">
-      {label && <div className="mb-1 text-[13px] text-ink-secondary">{label}</div>}
+    <label className="block border-b border-slate-100 px-4 py-3.5 last:border-b-0">
+      {label && <div className="mb-1.5 text-[12px] font-semibold text-slate-500">{label}</div>}
       <textarea
-        className={cn('w-full border-0 bg-transparent text-right text-[17px] text-ink-primary placeholder:text-ink-tertiary focus:outline-none', className)}
+        className={cn('block w-full resize-y border-0 bg-transparent p-0 text-left text-[15px] leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0', className)}
         {...props}
       />
-    </div>
+    </label>
   );
 }
 
@@ -109,15 +109,15 @@ export function IOSSelect({
   className?: string;
 }) {
   return (
-    <div className={cn('border-b border-separator px-4 py-3 last:border-b-0', className)}>
-      {label && <div className="mb-1 text-[13px] text-ink-secondary">{label}</div>}
+    <label className={cn('block border-b border-slate-100 px-4 py-3.5 last:border-b-0', className)}>
+      {label && <div className="mb-1.5 text-[12px] font-semibold text-slate-500">{label}</div>}
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="w-full cursor-pointer appearance-none border-0 bg-transparent text-right text-[17px] text-ink-primary focus:outline-none"
+        className="block w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left text-[15px] text-slate-900 outline-none focus:ring-0"
       >
         {children}
       </select>
-    </div>
+    </label>
   );
 }

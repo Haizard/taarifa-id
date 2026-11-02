@@ -116,6 +116,10 @@ export interface ResidenceDto {
 
 export interface DesperateConditionDto {
   acute_condition_code?: string;
+  condition_status?: string;
+  stage?: string;
+  diagnosed_on?: string;
+  treatment_details?: string;
   notes?: string;
   occurrence?: string;
   unconscious_treatment_remedy?: string;
@@ -125,6 +129,12 @@ export interface DesperateConditionDto {
   hospital_contacts?: string;
   doctor_name?: string;
   doctor_contacts?: string;
+}
+
+export interface ProfileAssetDto {
+  asset_type: string;
+  label: string;
+  details: Record<string, string>;
 }
 
 export interface EmergencyContactDto {
@@ -174,6 +184,7 @@ export interface UpsertSubFormsDto {
   health?: BasicHealthDto;
   residence?: ResidenceDto;
   desperate_conditions?: DesperateConditionDto[];
+  assets?: ProfileAssetDto[];
   emergency_contacts?: EmergencyContactDto[];
   employment?: EmploymentDto;
 }

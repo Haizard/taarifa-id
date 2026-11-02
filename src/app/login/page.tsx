@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { GlassButton } from '@/components/ui/GlassCard';
 import { IOSInput } from '@/components/ui/IOSListGroup';
+import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,55 +41,7 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <div className="app-bg flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <div className="mb-8 flex items-center gap-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary text-[16px] font-bold text-white">
-          T
-        </div>
-        <span className="text-[20px] font-bold text-ink-primary">TAARIFA ID</span>
-      </div>
-
-      <div className="w-full max-w-md">
-        <div className="glass-strong p-6">
-          <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Welcome back</h1>
-          <p className="mb-6 text-[15px] text-ink-secondary">Log in to your account.</p>
-
-          <div className="space-y-1">
-            <IOSInput label="Username or mobile" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" />
-            <IOSInput label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} />
-          </div>
-
-          <div className="mt-6">
-            <GlassButton onClick={submit} disabled={loading}>
-              {loading ? 'Logging in…' : 'Log in'}
-            </GlassButton>
-          </div>
-
-          <div className="mt-4 text-center">
-            <Link href="/forgot-password" className="text-[15px] font-medium text-accent-primary">
-              Forgot password?
-            </Link>
-          </div>
-        </div>
-
-        <p className="mt-6 text-center text-[14px] text-ink-secondary">
-          New here?{' '}
-          <Link href="/register" className="font-medium text-accent-primary">
-            Create an account
-          </Link>
-        </p>
-      </div>
-
-      <div className="mt-6 w-full max-w-md">
-        <div className="glass-subtle p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[13px] font-semibold uppercase tracking-wide text-ink-secondary">Demo accounts</span>
-            <span className="rounded-full bg-accent-primary/15 px-2 py-0.5 text-[11px] font-medium text-accent-primary">Shared password: demo1234</span>
-          </div>
-          <p className="mb-2 text-[12px] text-ink-tertiary">Tap a username to fill it in, then log in with the shared password.</p>
-          <div className="grid grid-cols-1 gap-1">
-            {[
+  const demoAccounts = [
               { u: 'demo.systemadmin', label: 'System admin console' },
               { u: 'demo.individual', label: 'Individual' },
               { u: 'demo.family', label: 'Family (reseller)' },
@@ -101,22 +54,47 @@ export default function LoginPage() {
               { u: 'member.school', label: 'School member (user)' },
               { u: 'member.business', label: 'Business employee (user)' },
               { u: 'member.institution', label: 'Institution staff (user)' },
-            ].map((d) => (
+            ];
+
+  return (
+    <div className="min-h-screen bg-[#f5f7f6] text-slate-900 lg:grid lg:grid-cols-2">
+      <section className="relative hidden min-h-screen overflow-hidden bg-emerald-950 lg:block">
+        <img src="/images/marketplace/hero-healthcare.webp" alt="Care professional helping a patient" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/90 via-emerald-950/55 to-slate-950/15" />
+        <Link href="/" className="absolute left-10 top-9 z-10 flex items-center gap-3 text-white"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl font-extrabold">T</span><span className="font-extrabold tracking-wide">TAARIFA ID</span></Link>
+        <div className="absolute bottom-14 left-10 right-10 z-10 max-w-xl text-white xl:left-16 xl:bottom-16"><div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold"><Sparkles size={14}/>Services that meet you where you are</div><h2 className="mt-5 text-4xl font-bold leading-tight xl:text-5xl">Find trusted help for life’s important moments.</h2><p className="mt-4 max-w-lg text-base leading-7 text-white/80">Connect with hospitals, schools, and roadside teams. Compare services and choose what works for you.</p><div className="mt-7 flex items-center gap-2 text-sm font-medium text-white/90"><ShieldCheck size={17}/>You choose what information to share</div></div>
+      </section>
+      <section className="flex min-h-screen items-start justify-center px-4 py-8 sm:px-8 lg:items-center lg:overflow-y-auto lg:py-10">
+        <div className="w-full max-w-lg">
+          <Link href="/" className="mb-7 flex items-center gap-2.5 lg:hidden"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-lg font-bold text-white">T</span><span className="font-extrabold text-slate-900">TAARIFA <span className="text-emerald-700">ID</span></span></Link>
+          <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,.08)] sm:p-8">
+            <div className="mb-6"><div className="text-xs font-bold uppercase tracking-[.16em] text-emerald-700">Your account</div><h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Welcome back</h1><p className="mt-2 text-sm text-slate-500">Log in to continue to your Taarifa ID account.</p></div>
+            <div className="space-y-1"><IOSInput label="Username or mobile" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" /><IOSInput label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} /></div>
+            <div className="mt-5"><GlassButton onClick={submit} disabled={loading}>{loading ? 'Logging in…' : <span className="inline-flex items-center gap-2">Log in <ArrowRight size={16}/></span>}</GlassButton></div>
+            <div className="mt-4 text-center"><Link href="/forgot-password" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">Forgot password?</Link></div>
+            <p className="mt-5 text-center text-sm text-slate-600">New to Taarifa ID? <Link href="/register" className="font-bold text-emerald-700">Create an account</Link></p>
+          </div>
+          <div className="mt-5 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-bold text-slate-900">Explore with a demo account</span><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Password: demo1234</span></div>
+            <p className="mb-3 mt-1 text-xs text-slate-500">Choose a sample account to fill the login form.</p>
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {demoAccounts.map((d) => (
               <button
                 key={d.u}
                 onClick={() => {
                   setUsername(d.u);
                   setPassword('demo1234');
                 }}
-                className="flex items-center justify-between rounded-xl px-3 py-1.5 text-left transition-colors hover:bg-accent-primary/10"
+                className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-100 px-3 py-2 text-left transition hover:border-emerald-200 hover:bg-emerald-50"
               >
-                <span className="font-mono text-[13px] text-accent-primary">{d.u}</span>
-                <span className="text-[12px] text-ink-tertiary">{d.label}</span>
+                <span className="truncate font-mono text-[11px] font-semibold text-emerald-800">{d.u}</span>
+                <span className="truncate text-[10px] text-slate-500">{d.label}</span>
               </button>
             ))}
           </div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { Camera, UserRound } from 'lucide-react';
+import { ArrowRight, Camera, ShieldCheck, UserRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MAX_PHOTO_BYTES, fileToResizedDataUrl } from '@/lib/image';
 import { GlassButton } from '@/components/ui/GlassCard';
@@ -123,26 +123,29 @@ function RegisterForm() {
   };
 
   return (
-    <div className="app-bg flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <div className="mb-8 flex items-center gap-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary text-[16px] font-bold text-white">
-          T
-        </div>
-        <span className="text-[20px] font-bold text-ink-primary">TAARIFA ID</span>
-      </div>
-
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex justify-center gap-2">
+    <div className="min-h-screen bg-[#f5f7f6] px-4 py-5 text-slate-900 sm:px-7 lg:px-10 lg:py-8">
+      <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[.82fr_1.18fr] lg:items-start">
+      <aside className="relative hidden min-h-[calc(100vh-4rem)] overflow-hidden rounded-[28px] bg-emerald-950 lg:sticky lg:top-8 lg:block">
+        <img src={form.account_type === 'school' ? '/images/marketplace/hero-school.webp' : form.account_type === 'business' ? '/images/marketplace/hero-garage.webp' : '/images/marketplace/hero-healthcare.webp'} alt="People connecting with local services" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/95 via-emerald-950/45 to-emerald-950/20" />
+        <div className="absolute left-8 top-8 z-10"><Link href="/" className="flex items-center gap-3 text-white"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl font-extrabold">T</span><span className="font-extrabold tracking-wide">TAARIFA ID</span></Link></div>
+        <div className="absolute bottom-9 left-8 right-8 z-10 text-white xl:bottom-12 xl:left-10 xl:right-10"><span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold"><ShieldCheck size={14}/>A profile for your next step</span><h2 className="mt-5 text-3xl font-bold leading-tight xl:text-4xl">One account. A simpler way to connect.</h2><p className="mt-3 max-w-lg text-sm leading-6 text-white/80">Find services, manage requests, and keep useful information organized for the moments you need it.</p><div className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">{['Healthcare','Education','Roadside support'].map((tag)=><span key={tag} className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5">{tag}</span>)}</div></div>
+      </aside>
+      <main className="mx-auto w-full max-w-2xl">
+        <Link href="/" className="mb-5 flex items-center gap-2.5 lg:hidden"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-700 text-lg font-bold text-white">T</span><span className="font-extrabold">TAARIFA <span className="text-emerald-700">ID</span></span></Link>
+        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[.15em] text-emerald-700">Join Taarifa ID</div><p className="mt-1 text-sm text-slate-600">Create your account in three guided steps.</p></div><Link href="/login" className="shrink-0 text-sm font-bold text-emerald-700">Log in</Link></div>
+        <div className="mt-5 flex gap-2">
           {STEPS.map((s, i) => (
-            <div key={s} className={`h-2 rounded-full transition-all ${i <= step ? 'w-8 bg-accent-primary' : 'w-2 bg-ink-tertiary/30'}`} />
+            <div key={s} className="flex flex-1 items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${i <= step ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span><span className={`text-xs font-semibold ${i <= step ? 'text-emerald-800' : 'text-slate-400'}`}>{s}</span>{i < STEPS.length - 1 && <span className={`h-px flex-1 ${i < step ? 'bg-emerald-500' : 'bg-slate-200'}`} />}</div>
           ))}
         </div>
+        </div>
 
-        <div className="glass-strong p-6">
+        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_20px_70px_rgba(15,23,42,.07)] sm:p-7">
           {step === 0 && (
             <div>
-              <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Create account</h1>
-              <p className="mb-6 text-[15px] text-ink-secondary">What kind of profile are you registering?</p>
+              <h1 className="mb-1 text-2xl font-bold text-slate-900 sm:text-[28px]">Create your account</h1>
+              <p className="mb-6 text-sm text-slate-500">Choose the kind of profile you want to register.</p>
               <IOSSelect label="Account type" value={form.account_type} onChange={(v) => set('account_type', v)}>
                 {ACCOUNT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -152,7 +155,7 @@ function RegisterForm() {
               </IOSSelect>
               {form.account_type !== 'individual' && (
                 <div className="mt-3 rounded-button bg-accent-secondary/15 px-4 py-3 text-[14px] font-medium text-accent-secondary">
-                  RESELLER — this account manages member sub-accounts.
+                  Organization account — manage your team and services from one profile.
                 </div>
               )}
             </div>
@@ -160,8 +163,8 @@ function RegisterForm() {
 
           {step === 1 && (
             <div>
-              <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Personal details</h1>
-              <p className="mb-6 text-[15px] text-ink-secondary">Identity data shown on your ID card.</p>
+              <h1 className="mb-1 text-2xl font-bold text-slate-900 sm:text-[28px]">Your details</h1>
+              <p className="mb-6 text-sm text-slate-500">Add the information for your profile and ID card.</p>
 
               <div className="mb-5 flex flex-col items-center gap-3">
                 <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
@@ -223,8 +226,8 @@ function RegisterForm() {
             <div>
               {!profileId ? (
                 <div>
-                  <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Almost there</h1>
-                  <p className="mb-6 text-[15px] text-ink-secondary">Review and create your profile.</p>
+                  <h1 className="mb-1 text-2xl font-bold text-slate-900 sm:text-[28px]">Review your details</h1>
+                  <p className="mb-6 text-sm text-slate-500">Check your profile before creating the account.</p>
                   <div className="mb-6 space-y-2 rounded-button bg-glass-subtle p-4 text-[14px]">
                     {photo && (
                       <div className="mb-3 flex items-center gap-3">
@@ -243,8 +246,8 @@ function RegisterForm() {
                 </div>
               ) : (
                 <div>
-                  <h1 className="mb-1 text-[28px] font-bold text-ink-primary">Verify your number</h1>
-                  <p className="mb-6 text-[15px] text-ink-secondary">
+                  <h1 className="mb-1 text-2xl font-bold text-slate-900 sm:text-[28px]">Verify your number</h1>
+                  <p className="mb-6 text-sm text-slate-500">
                     We sent a confirmation code to {form.mobile_number}. This code is your first-login credential.
                   </p>
                   {devCode && (
@@ -261,7 +264,7 @@ function RegisterForm() {
           <div className="mt-6 space-y-3">
             {step < 2 ? (
               <GlassButton onClick={next} disabled={loading}>
-                Continue
+                <span className="inline-flex items-center gap-2">Continue <ArrowRight size={16}/></span>
               </GlassButton>
             ) : profileId ? (
               <GlassButton onClick={confirm} disabled={loading || smsCode.length < 4}>
@@ -280,12 +283,13 @@ function RegisterForm() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-[14px] text-ink-secondary">
+        <p className="mt-5 text-center text-sm text-slate-500">
           Already have an account?{' '}
-          <Link href="/login" className="font-medium text-accent-primary">
+          <Link href="/login" className="font-bold text-emerald-700">
             Log in
           </Link>
         </p>
+      </main>
       </div>
     </div>
   );

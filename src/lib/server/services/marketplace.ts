@@ -122,6 +122,7 @@ function cleanFormFields(input: unknown): FormField[] {
   return input.map((raw: any) => {
     const key = String(raw?.key ?? '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 60);
     const label = String(raw?.label ?? '').trim().slice(0, 120);
+    const help_text = String(raw?.help_text ?? '').trim().slice(0, 300);
     const type = String(raw?.type ?? 'text');
     if (!key || !label || !fieldTypes.includes(type)) throw badRequest('Each form field needs a label and supported type');
     if (keys.has(key)) throw badRequest(`Duplicate field key: ${key}`);
@@ -130,7 +131,7 @@ function cleanFormFields(input: unknown): FormField[] {
       ? raw.options.map((option: unknown) => String(option).trim().slice(0, 100)).filter(Boolean).slice(0, 30)
       : [];
     if (type === 'select' && options.length === 0) throw badRequest(`Add at least one choice for ${label}`);
-    return { key, label, type, required: raw.required === true, ...(type === 'select' ? { options } : {}) } as FormField;
+    return { key, label, ...(help_text ? { help_text } : {}), type, required: raw.required === true, ...(type === 'select' ? { options } : {}) } as FormField;
   });
 }
 
