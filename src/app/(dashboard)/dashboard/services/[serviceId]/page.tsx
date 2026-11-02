@@ -4,16 +4,17 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { ArrowLeft, MapPin, ShieldCheck, Siren, Store } from 'lucide-react';
+import { ArrowLeft, MapPin, ShieldCheck, Siren } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { GlassButton, LargeTitleHeader, SectionLabel, Badge } from '@/components/ui/GlassCard';
+import { ProviderMark } from '@/components/marketplace/ProviderMark';
 
 type Field = { key: string; label: string; type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox'; required?: boolean; options?: string[] };
 type Service = {
   id: string; title: string; description: string | null; delivery_mode: string; price_type: string;
   price_amount: string | null; form_fields: Field[];
-  provider: { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; verification_status: string; description: string | null; region: string | null; district: string | null; ward: string | null; contact_number: string | null };
+  provider: { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; logo_url?: string | null; verification_status: string; description: string | null; region: string | null; district: string | null; ward: string | null; contact_number: string | null; rating?: number; review_count?: number };
 };
 
 export default function ServiceRequestPage() {
@@ -43,7 +44,7 @@ export default function ServiceRequestPage() {
       <LargeTitleHeader title={service.title} subtitle={service.provider.display_name} />
       <div className="glass mb-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><div className="flex items-center gap-2 text-[14px] text-ink-secondary"><Store size={18} className="text-accent-primary" />{service.provider.display_name}</div><div className="mt-1"><Badge tone={service.provider.verification_status === 'verified' ? 'green' : 'grey'}>{service.provider.verification_status === 'verified' ? 'Verified organization' : 'Not verified by platform'}</Badge></div></div>
+          <div className="flex items-center gap-3"><ProviderMark name={service.provider.display_name} category={service.provider.category} logoUrl={service.provider.logo_url} size="lg" /><div><div className="text-[16px] font-bold text-ink-primary">{service.provider.display_name}</div><div className="mt-1 flex flex-wrap items-center gap-2"><Badge tone={service.provider.verification_status === 'verified' ? 'green' : 'grey'}>{service.provider.verification_status === 'verified' ? 'Verified organization' : 'Not verified by platform'}</Badge>{service.provider.rating != null && <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-amber-700">★ {service.provider.rating} <span className="font-normal text-ink-tertiary">· {service.provider.review_count} reviews</span></span>}</div></div></div>
           <div className="flex flex-col items-end gap-2"><Badge tone={service.provider.category === 'hospital' ? 'red' : service.provider.category === 'school' ? 'yellow' : 'green'}>{service.provider.category}</Badge><span className="text-[10px] text-ink-tertiary">Check provider status before sharing sensitive information.</span></div>
         </div>
         {service.description && <p className="mt-3 text-[14px] leading-6 text-ink-secondary">{service.description}</p>}

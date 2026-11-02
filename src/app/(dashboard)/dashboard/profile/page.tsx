@@ -149,6 +149,7 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
     entityType === 'family' ? 'family_name' : entityType === 'school' ? 'school_name' : entityType === 'business' ? 'business_name' : 'institution_name';
   const label = entityType === 'family' ? 'Family name' : entityType === 'school' ? 'School name' : entityType === 'business' ? 'Business name' : 'Institution name';
   const contactsKey = entityType === 'school' ? 'school_contacts' : entityType === 'business' ? 'business_contacts' : entityType === 'institution' ? 'institution_contacts' : null;
+  const logoKey = entityType === 'school' ? 'school_logo_url' : entityType === 'business' ? 'business_logo_url' : entityType === 'institution' ? 'institution_logo_url' : null;
 
   return (
     <div className="mb-8 min-w-0">
@@ -171,6 +172,7 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
             <IOSInput label="TIN number" value={form.tin_number ?? ''} onChange={(e) => set('tin_number', e.target.value)} />
           </>
         )}
+        {logoKey && <IOSInput label="Organization logo URL" type="url" value={form[logoKey] ?? ''} onChange={(e) => set(logoKey, e.target.value)} placeholder="https://your-organization.org/logo.png" />}
         <IOSInput label="Region" value={form.region ?? ''} onChange={(e) => set('region', e.target.value)} />
         <IOSInput label="District" value={form.district ?? ''} onChange={(e) => set('district', e.target.value)} />
         <IOSInput label="Ward" value={form.ward ?? ''} onChange={(e) => set('ward', e.target.value)} />

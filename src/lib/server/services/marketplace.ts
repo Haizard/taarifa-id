@@ -3,6 +3,7 @@ import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, conflict, forbidden, notFound } from '../errors';
 import { notifyAccount } from './notifications';
+import { getOrganizationLogos } from './provider-branding';
 
 type Category = typeof schema.serviceCategoryEnum.enumValues[number];
 type FormField = schema.ServiceFormField;
@@ -182,6 +183,7 @@ export async function listServices(category?: string, search?: string) {
     .groupBy(schema.serviceReviews.provider_id)
     .having(sql`count(*) >= 3`) : [];
   const ratingMap = new Map(ratings.map((r) => [r.provider_id, { rating: r.rating, review_count: r.review_count }]));
+  const logos = await getOrganizationLogos(rows.map(({ provider }) => provider.account_id));
   return rows
     .filter(({ service, provider }) => !term || `${service.title} ${service.description ?? ''} ${provider.display_name} ${provider.region ?? ''} ${provider.district ?? ''}`.toLowerCase().includes(term))
     .map(({ service, provider }) => ({
@@ -190,6 +192,7 @@ export async function listServices(category?: string, search?: string) {
         id: provider.id,
         category: provider.category,
         display_name: provider.display_name,
+        logo_url: logos.get(provider.account_id) ?? null,
         verification_status: provider.verification_status,
         description: provider.description,
         region: provider.region,
@@ -213,12 +216,14 @@ export async function getService(serviceId: string) {
     rating: sql<number>`round(avg(${schema.serviceReviews.rating})::numeric, 1)::float`,
     review_count: sql<number>`count(*)::int`,
   }).from(schema.serviceReviews).where(and(eq(schema.serviceReviews.provider_id, row.provider.id), notInArray(schema.serviceReviews.moderation_status, ['disputed', 'removed']))).having(sql`count(*) >= 3`);
+  const logos = await getOrganizationLogos([row.provider.account_id]);
   return {
     ...row.service,
     provider: {
       id: row.provider.id,
       category: row.provider.category,
       display_name: row.provider.display_name,
+      logo_url: logos.get(row.provider.account_id) ?? null,
       verification_status: row.provider.verification_status,
       description: row.provider.description,
       region: row.provider.region,

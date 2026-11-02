@@ -1,9 +1,10 @@
-import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, notInArray, sql } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, forbidden, notFound } from '../errors';
 import { blockedCounterpartIds, hasActiveBlock } from './job-safety';
 import { isProviderVerificationCurrent } from './provider-verification';
+import { getOrganizationLogos } from './provider-branding';
 
 const orgTypes = ['business', 'school', 'institution'];
 const appStatuses = ['submitted', 'under_review', 'interview', 'offered', 'rejected', 'withdrawn', 'hire_pending', 'offer_declined', 'hired'];
@@ -94,8 +95,17 @@ export async function listJobs(accountId: string) {
     .from(schema.jobApplications).where(eq(schema.jobApplications.worker_account_id, accountId));
   const appMap = new Map(apps.map((a) => [a.job_id, a.status]));
   const blocked = await blockedCounterpartIds(accountId);
+  const logos = await getOrganizationLogos(rows.map(({ provider }) => provider.account_id));
+  const providerIds = [...new Set(rows.map(({ provider }) => provider.id))];
+  const ratings = providerIds.length ? await db.select({ provider_id: schema.serviceReviews.provider_id, rating: sql<number>`round(avg(${schema.serviceReviews.rating})::numeric, 1)::float`, review_count: sql<number>`count(*)::int` }).from(schema.serviceReviews)
+    .where(and(inArray(schema.serviceReviews.provider_id, providerIds), notInArray(schema.serviceReviews.moderation_status, ['disputed', 'removed'])))
+    .groupBy(schema.serviceReviews.provider_id).having(sql`count(*) >= 3`) : [];
+  const ratingMap = new Map(ratings.map((row) => [row.provider_id, row]));
   return rows.filter(({ job, org, provider }) => isProviderVerificationCurrent(provider) && (!job.closes_at || job.closes_at > new Date()) && !blocked.has(org.id)).map(({ job, provider }) => ({
     ...job, organization_name: provider.display_name, organization_category: provider.category,
+    organization_logo_url: logos.get(provider.account_id) ?? null,
+    organization_rating: ratingMap.get(provider.id)?.rating ?? null,
+    organization_review_count: ratingMap.get(provider.id)?.review_count ?? 0,
     application_status: appMap.get(job.id) ?? null,
   }));
 }
@@ -355,10 +365,20 @@ export async function listWorkerInvitations(accountId: string) {
     .orderBy(desc(schema.jobInvitations.created_at));
   const visible = await Promise.all(rows.filter(({ invitation, job, provider }) => invitation.expires_at > now && isProviderVerificationCurrent(provider) && job.status === 'open' && (!job.closes_at || job.closes_at > now))
     .map(async (row) => ({ row, blocked: await hasActiveBlock(accountId, row.job.organization_account_id) })));
-  return visible.filter(({ blocked }) => !blocked).map(({ row: { invitation, job, provider } }) => ({
+  const available = visible.filter(({ blocked }) => !blocked).map(({ row }) => row);
+  const logos = await getOrganizationLogos(available.map(({ provider }) => provider.account_id));
+  const providerIds = [...new Set(available.map(({ provider }) => provider.id))];
+  const ratings = providerIds.length ? await db.select({ provider_id: schema.serviceReviews.provider_id, rating: sql<number>`round(avg(${schema.serviceReviews.rating})::numeric, 1)::float`, review_count: sql<number>`count(*)::int` }).from(schema.serviceReviews)
+    .where(and(inArray(schema.serviceReviews.provider_id, providerIds), notInArray(schema.serviceReviews.moderation_status, ['disputed', 'removed'])))
+    .groupBy(schema.serviceReviews.provider_id).having(sql`count(*) >= 3`) : [];
+  const ratingMap = new Map(ratings.map((row) => [row.provider_id, row]));
+  return available.map(({ invitation, job, provider }) => ({
       id: invitation.id, message: invitation.message, expires_at: invitation.expires_at,
       job_id: job.id, title: job.title, category: job.category, location: job.location,
       employment_type: job.employment_type, description: job.description, organization_name: provider.display_name,
+      organization_category: provider.category, organization_logo_url: logos.get(provider.account_id) ?? null,
+      organization_rating: ratingMap.get(provider.id)?.rating ?? null,
+      organization_review_count: ratingMap.get(provider.id)?.review_count ?? 0,
     }));
 }
 

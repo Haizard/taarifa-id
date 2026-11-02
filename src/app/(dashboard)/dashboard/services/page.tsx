@@ -6,13 +6,14 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Building2, GraduationCap, MapPin, Search, Siren, Store } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
-import { Badge, LargeTitleHeader, SectionLabel, type AccentTone } from '@/components/ui/GlassCard';
+import { Badge, SectionLabel, type AccentTone } from '@/components/ui/GlassCard';
+import { ProviderMark } from '@/components/marketplace/ProviderMark';
 
 type Category = 'hospital' | 'school' | 'garage';
 type Service = {
   id: string; title: string; description: string | null; delivery_mode: string;
   price_type: string; price_amount: string | null;
-  provider: { id: string; category: Category; display_name: string; verification_status: string; region: string | null; district: string | null; rating?: number; review_count?: number };
+  provider: { id: string; category: Category; display_name: string; logo_url?: string | null; verification_status: string; region: string | null; district: string | null; rating?: number; review_count?: number };
 };
 
 const categories: { id: 'all' | Category; label: string; icon: any; tone: AccentTone }[] = [
@@ -39,12 +40,7 @@ export default function ServicesPage() {
 
   return (
     <div>
-      <LargeTitleHeader title="Find a service" subtitle="Choose a provider and send a private request." />
-
-      <div className="mb-5 flex flex-wrap gap-2">
-        <Link href="/dashboard/requests" className="glass rounded-full px-4 py-2 text-[13px] font-medium text-accent-primary">My requests and offers →</Link>
-        {user?.role === 'admin' && <Link href="/dashboard/provider" className="glass rounded-full px-4 py-2 text-[13px] font-medium text-accent-primary">Provider tools →</Link>}
-      </div>
+      <div className="mb-6 rounded-[22px] bg-emerald-950 px-6 py-7 text-white sm:px-8"><div className="text-[11px] font-bold uppercase tracking-[.15em] text-emerald-300">Taarifa ID marketplace</div><h1 className="mt-2 text-[30px] font-bold tracking-tight sm:text-[34px]">Find a service</h1><p className="mt-2 max-w-2xl text-[14px] leading-6 text-emerald-50/75">Choose a local provider and send a private request. Your saved information stays private until you choose to share it.</p><div className="mt-4 flex flex-wrap gap-2"><Link href="/dashboard/requests" className="rounded-lg bg-white/10 px-3 py-2 text-[12px] font-semibold text-white hover:bg-white/15">My requests and offers →</Link>{user?.role === 'admin' && <Link href="/dashboard/provider" className="rounded-lg bg-white px-3 py-2 text-[12px] font-semibold text-emerald-900">Provider tools →</Link>}</div></div>
 
       <label className="glass mb-5 flex items-center gap-3 rounded-2xl px-4 py-3 text-ink-secondary">
         <Search size={19} />
@@ -68,26 +64,18 @@ export default function ServicesPage() {
           {user?.role === 'admin' && <Link href="/dashboard/provider" className="mt-4 inline-flex items-center gap-2 text-[14px] font-semibold text-accent-primary">Set up your provider profile <ArrowRight size={16} /></Link>}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {services.map((service) => (
-            <Link key={service.id} href={`/dashboard/services/${service.id}`} className="glass btn-scale block p-5 transition-shadow hover:shadow-glass">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[17px] font-semibold text-ink-primary">{service.title}</div>
-                  <div className="mt-1 text-[14px] font-medium text-accent-primary">{service.provider.display_name}</div>
-                  <div className="mt-1"><Badge tone={service.provider.verification_status === 'verified' ? 'green' : 'grey'}>{service.provider.verification_status === 'verified' ? 'Verified organization' : 'Not verified by platform'}</Badge></div>
-                </div>
-                <Badge tone={service.provider.category === 'hospital' ? 'red' : service.provider.category === 'school' ? 'yellow' : 'green'}>{service.provider.category}</Badge>
-              </div>
-              {service.description && <p className="mt-3 line-clamp-2 text-[14px] text-ink-secondary">{service.description}</p>}
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-ink-tertiary">
+            <Link key={service.id} href={`/dashboard/services/${service.id}`} className="group block rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg">
+              <div className="flex items-center gap-3"><ProviderMark name={service.provider.display_name} category={service.provider.category} logoUrl={service.provider.logo_url} /><div className="min-w-0 flex-1"><div className="truncate text-[13px] font-bold text-slate-800">{service.provider.display_name}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">{service.provider.verification_status === 'verified' && <Badge tone="green">Verified</Badge>}<span className="capitalize">{service.provider.category}</span></div></div>{service.provider.rating !== undefined && <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-[12px] font-bold text-amber-700">★ {service.provider.rating}</span>}</div>
+              <div className="mt-5 text-[18px] font-bold text-slate-900 group-hover:text-emerald-800">{service.title}</div>
+              {service.description && <p className="mt-1 line-clamp-2 min-h-10 text-[13px] leading-5 text-slate-500">{service.description}</p>}
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-slate-500">
                 <span>{deliveryLabel[service.delivery_mode] ?? service.delivery_mode.replace('_', ' ')}</span>
-                <span>·</span>
-                <span>{service.price_type === 'fixed' && service.price_amount ? `${Number(service.price_amount).toLocaleString()} TZS` : service.price_type === 'free' ? 'Free' : 'Ask for a quote'}</span>
-                {service.provider.rating !== undefined && <span>★ {service.provider.rating} ({service.provider.review_count} reviews)</span>}
-                {(service.provider.district || service.provider.region) && <><span>·</span><span className="inline-flex items-center gap-1"><MapPin size={13} />{[service.provider.district, service.provider.region].filter(Boolean).join(', ')}</span></>}
+                {(service.provider.district || service.provider.region) && <span className="inline-flex items-center gap-1"><MapPin size={13} />{[service.provider.district, service.provider.region].filter(Boolean).join(', ')}</span>}
+                {service.provider.review_count ? <span>{service.provider.review_count} reviews</span> : null}
               </div>
-              <div className="mt-4 flex items-center justify-end gap-1 text-[13px] font-semibold text-accent-primary">View and request <ArrowRight size={15} /></div>
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3"><span className="text-[14px] font-bold text-slate-900">{service.price_type === 'fixed' && service.price_amount ? `${Number(service.price_amount).toLocaleString()} TZS` : service.price_type === 'free' ? 'Free' : 'Ask for a quote'}</span><span className="inline-flex items-center gap-1 text-[13px] font-semibold text-emerald-700">View and request <ArrowRight size={15} /></span></div>
             </Link>
           ))}
         </div>
