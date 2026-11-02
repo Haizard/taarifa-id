@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { BriefcaseBusiness, MapPin, MessageSquare, Send, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, MailPlus, MapPin, MessageSquare, Send, UsersRound } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -10,7 +10,7 @@ import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components
 
 type Job = { id: string; title: string; category: string; location: string; employment_type: string; description: string; requirements: string | null; status: string; application_count: number };
 type Applicant = { id: string; status: string; cover_note: string | null; applicant_name: string; career: { headline: string | null; summary: string | null; skills: string[] } | null; verified_history: { organization_name: string; position: string; started_on: string; ended_on: string | null }[] };
-type Candidate = { display_name: string; headline: string | null; summary: string | null; skills: string[]; categories: string[]; locations: string[] };
+type Candidate = { account_id: string; display_name: string; headline: string | null; summary: string | null; skills: string[]; categories: string[]; locations: string[] };
 type Message = { id: string; body: string; created_at: string; from_you: boolean };
 
 export default function EmployerJobsPage() {
@@ -28,6 +28,9 @@ export default function EmployerJobsPage() {
   const [requirements, setRequirements] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
+  const [inviteJobId, setInviteJobId] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [invited, setInvited] = useState<Record<string, string>>({});
   const params = new URLSearchParams();
   if (filterCategory.trim()) params.set('category', filterCategory.trim());
   if (filterLocation.trim()) params.set('location', filterLocation.trim());
@@ -54,6 +57,11 @@ export default function EmployerJobsPage() {
     onSuccess: () => { setMessageBody(''); qc.invalidateQueries({ queryKey: ['employer-application-messages', messageApplication] }); },
     onError: (e: any) => toast.error(e.message),
   });
+  const invite = useMutation({
+    mutationFn: ({ workerId, jobId }: { workerId: string; jobId: string }) => api.post(`/employer/jobs/${jobId}/invitations`, { worker_account_id: workerId, message: inviteMessage }),
+    onSuccess: (_result, vars) => { setInvited((s) => ({ ...s, [vars.workerId]: vars.jobId })); toast.success('Invitation sent. The worker decides whether to apply and what to share.'); },
+    onError: (e: any) => toast.error(e.message),
+  });
   if (user?.role !== 'admin' || !['business', 'school', 'institution'].includes(user.account_type)) return <div className="glass p-6 text-center text-ink-secondary">Job tools are available to organization admins.</div>;
   return <div className="mx-auto max-w-5xl">
     <LargeTitleHeader title="Jobs & candidates" subtitle="Post openings and review people who chose to be discoverable or applied to your role." />
@@ -76,7 +84,8 @@ export default function EmployerJobsPage() {
     </article>)}</div> : <div className="glass p-5 text-[13px] text-ink-secondary">No openings yet.</div>}
     <SectionLabel tone="green">Opt-in candidate search</SectionLabel>
     <div className="glass mb-3 grid gap-3 p-4 sm:grid-cols-2"><label className="text-[12px] font-medium text-ink-secondary">Category filter<input value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} placeholder="e.g. mechanic" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /></label><label className="text-[12px] font-medium text-ink-secondary">Location filter<input value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)} placeholder="e.g. Moshi" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /></label></div>
-    {candidatesQuery.data?.length ? <div className="grid gap-3 md:grid-cols-2">{candidatesQuery.data.map((person, i) => <article key={`${person.display_name}-${i}`} className="glass p-4"><div className="font-semibold text-ink-primary">{person.display_name}</div>{person.headline && <div className="text-[13px] text-accent-primary">{person.headline}</div>}{person.summary && <p className="mt-2 text-[12px] text-ink-secondary">{person.summary}</p>}<div className="mt-2 text-[12px] text-ink-secondary">Skills: {(person.skills ?? []).join(', ') || 'Not listed'}</div><div className="mt-1 text-[11px] text-ink-tertiary"><MapPin size={12} className="mr-1 inline" />{(person.locations ?? []).join(', ')} · {(person.categories ?? []).join(', ')}</div></article>)}</div> : <div className="glass p-5 text-[13px] text-ink-secondary">No opted-in candidates match these filters.</div>}
+    <div className="glass mb-3 grid gap-3 p-4 sm:grid-cols-2"><label className="text-[12px] font-medium text-ink-secondary">Invitation job<select value={inviteJobId} onChange={(e) => setInviteJobId(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary"><option value="">Choose an open job…</option>{(data?.jobs ?? []).filter((job) => job.status === 'open').map((job) => <option key={job.id} value={job.id}>{job.title}</option>)}</select></label><label className="text-[12px] font-medium text-ink-secondary">Invitation note (optional)<input maxLength={1200} value={inviteMessage} onChange={(e) => setInviteMessage(e.target.value)} placeholder="We think you may be interested…" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /></label></div>
+    {candidatesQuery.data?.length ? <div className="grid gap-3 md:grid-cols-2">{candidatesQuery.data.map((person) => <article key={person.account_id} className="glass p-4"><div className="font-semibold text-ink-primary">{person.display_name}</div>{person.headline && <div className="text-[13px] text-accent-primary">{person.headline}</div>}{person.summary && <p className="mt-2 text-[12px] text-ink-secondary">{person.summary}</p>}<div className="mt-2 text-[12px] text-ink-secondary">Skills: {(person.skills ?? []).join(', ') || 'Not listed'}</div><div className="mt-1 text-[11px] text-ink-tertiary"><MapPin size={12} className="mr-1 inline" />{(person.locations ?? []).join(', ')} · {(person.categories ?? []).join(', ')}</div><button onClick={() => invite.mutate({ workerId: person.account_id, jobId: inviteJobId })} disabled={!inviteJobId || invite.isPending || invited[person.account_id] === inviteJobId} className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent-primary/10 px-4 py-2 text-[12px] font-semibold text-accent-primary disabled:opacity-50"><MailPlus size={15} />{invited[person.account_id] === inviteJobId ? 'Invitation sent' : 'Invite to apply'}</button></article>)}</div> : <div className="glass p-5 text-[13px] text-ink-secondary">No opted-in candidates match these filters.</div>}
     <div className="mt-3 flex items-start gap-2 text-[11px] text-ink-tertiary"><BriefcaseBusiness size={14} className="mt-0.5" />Contact information stays private. Applicants choose to share career details with each application; candidate search does not reveal work history or contact fields.</div>
   </div>;
 }

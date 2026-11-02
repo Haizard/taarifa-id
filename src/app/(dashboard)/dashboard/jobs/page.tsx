@@ -13,6 +13,7 @@ type Preference = { job_seeking: boolean; job_categories: string[]; job_location
 type Career = { history: { id: string; position: string; organization_name: string; verification_status: string }[] };
 type Application = { id: string; status: string; job_title: string; organization_name: string; location: string; employer_note: string | null };
 type Message = { id: string; body: string; created_at: string; from_you: boolean };
+type Invitation = { id: string; title: string; category: string; location: string; employment_type: string; description: string; organization_name: string; message: string | null; expires_at: string };
 
 export default function JobsPage() {
   const { user } = useAuthStore();
@@ -20,6 +21,7 @@ export default function JobsPage() {
   const prefQuery = useQuery({ queryKey: ['job-preferences', user?.sub], queryFn: () => api.get<Preference>('/jobs/preferences'), enabled: !!user });
   const jobsQuery = useQuery({ queryKey: ['jobs', user?.sub], queryFn: () => api.get<Job[]>('/jobs'), enabled: !!user });
   const appsQuery = useQuery({ queryKey: ['my-job-applications', user?.sub], queryFn: () => api.get<Application[]>('/jobs/applications'), enabled: !!user });
+  const invitesQuery = useQuery({ queryKey: ['job-invitations', user?.sub], queryFn: () => api.get<Invitation[]>('/jobs/invitations'), enabled: !!user });
   const careerQuery = useQuery({ queryKey: ['career-me', user?.sub], queryFn: () => api.get<Career>('/career/me'), enabled: !!user });
   const [enabled, setEnabled] = useState(false);
   const [categories, setCategories] = useState('');
@@ -27,6 +29,8 @@ export default function JobsPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [shareProfile, setShareProfile] = useState<Record<string, boolean>>({});
   const [shareHistory, setShareHistory] = useState<Record<string, string[]>>({});
+  const [inviteShareProfile, setInviteShareProfile] = useState<Record<string, boolean>>({});
+  const [inviteShareHistory, setInviteShareHistory] = useState<Record<string, string[]>>({});
   const [messageApplication, setMessageApplication] = useState('');
   const [messageBody, setMessageBody] = useState('');
   const messagesQuery = useQuery({ queryKey: ['application-messages', messageApplication], queryFn: () => api.get<Message[]>(`/jobs/applications/${messageApplication}/messages`), enabled: !!messageApplication, refetchInterval: 10000 });
@@ -56,6 +60,13 @@ export default function JobsPage() {
     onSuccess: () => { setMessageBody(''); qc.invalidateQueries({ queryKey: ['application-messages', messageApplication] }); },
     onError: (e: any) => toast.error(e.message),
   });
+  const respondInvite = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) => api.post(`/jobs/invitations/${id}/respond`, {
+      action, share_profile: inviteShareProfile[id] === true, shared_history_ids: inviteShareHistory[id] ?? [],
+    }),
+    onSuccess: (_data, variables) => { qc.invalidateQueries({ queryKey: ['job-invitations'] }); qc.invalidateQueries({ queryKey: ['jobs'] }); qc.invalidateQueries({ queryKey: ['my-job-applications'] }); toast.success(variables.action === 'accept' ? 'Invitation accepted. Choose what to share from your application.' : 'Invitation declined'); },
+    onError: (e: any) => toast.error(e.message),
+  });
   const verified = (careerQuery.data?.history ?? []).filter((record) => record.verification_status === 'verified');
   if (!['individual', 'user'].includes(user?.role ?? '')) return <div className="glass p-6 text-center text-ink-secondary">Job tools are for individual and employee accounts.</div>;
   return <div className="mx-auto max-w-5xl">
@@ -65,6 +76,7 @@ export default function JobsPage() {
       <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-[13px] font-medium text-ink-secondary">Job categories, comma separated<input value={categories} onChange={(e) => setCategories(e.target.value)} placeholder="Automotive technician, mechanic" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label><label className="text-[13px] font-medium text-ink-secondary">Preferred locations<input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="Moshi, Arusha, Remote" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label></div>
       <div className="mt-3"><GlassButton disabled={save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save visibility settings'}</GlassButton></div>
     </section>
+    {!!invitesQuery.data?.length && <><SectionLabel tone="yellow">Employer invitations</SectionLabel><div className="mb-6 space-y-3">{invitesQuery.data.map((invite) => <article key={invite.id} className="glass p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-semibold text-ink-primary">{invite.title} · {invite.organization_name}</div><div className="text-[12px] text-ink-tertiary">{invite.category} · {invite.location} · {invite.employment_type}</div></div><div className="text-[11px] text-ink-tertiary">Expires {new Date(invite.expires_at).toLocaleDateString()}</div></div><p className="mt-2 text-[13px] text-ink-secondary">{invite.message || 'The organization would like you to consider this opening.'}</p><p className="mt-3 text-[12px] font-semibold text-ink-primary">Choose career information to share with your application (optional)</p><label className="mt-2 flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={inviteShareProfile[invite.id] ?? false} onChange={(e) => setInviteShareProfile((s) => ({ ...s, [invite.id]: e.target.checked }))} />Share my headline, summary, and skills</label>{verified.map((record) => <label key={record.id} className="mt-1 flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={(inviteShareHistory[invite.id] ?? []).includes(record.id)} onChange={(e) => setInviteShareHistory((s) => ({ ...s, [invite.id]: e.target.checked ? [...(s[invite.id] ?? []), record.id] : (s[invite.id] ?? []).filter((id) => id !== record.id) }))} />Share verified record: {record.position} · {record.organization_name}</label>)}<div className="mt-3 flex flex-wrap gap-2"><button onClick={() => respondInvite.mutate({ id: invite.id, action: 'accept' })} disabled={respondInvite.isPending} className="rounded-full bg-accent-success/15 px-4 py-2 text-[13px] font-semibold text-accent-success">Accept & start application</button><button onClick={() => respondInvite.mutate({ id: invite.id, action: 'decline' })} disabled={respondInvite.isPending} className="rounded-full bg-white/60 px-4 py-2 text-[13px] font-semibold text-ink-secondary">Decline</button></div></article>)}</div></>}
     <SectionLabel tone="blue">Open roles</SectionLabel>
     <div className="space-y-3">{jobsQuery.data?.map((job) => <article key={job.id} className="glass p-5">
       <div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="text-[17px] font-semibold text-ink-primary">{job.title}</h2><div className="text-[13px] text-ink-secondary">{job.organization_name} · {job.organization_category}</div></div><Badge tone={job.application_status ? 'green' : 'blue'}>{job.application_status ?? 'Open'}</Badge></div>

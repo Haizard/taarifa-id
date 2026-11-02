@@ -53,6 +53,8 @@ export async function saveJobPreferences(accountId: string, dto: any) {
   };
   const [profile] = await db.insert(schema.careerProfiles).values(values)
     .onConflictDoUpdate({ target: schema.careerProfiles.account_id, set: { ...values, updated_at: new Date() } }).returning();
+  if (!jobSeeking) await db.update(schema.jobInvitations).set({ status: 'expired', updated_at: new Date() })
+    .where(and(eq(schema.jobInvitations.worker_account_id, accountId), eq(schema.jobInvitations.status, 'pending')));
   return profile;
 }
 
@@ -257,4 +259,86 @@ export async function sendApplicationMessage(accountId: string, applicationId: s
   if ((recent?.count ?? 0) >= 30) throw badRequest('Please wait before sending more messages');
   const [message] = await db.insert(schema.jobMessages).values({ application_id: application.id, sender_account_id: accountId, body }).returning();
   return { id: message.id, body: message.body, created_at: message.created_at, from_you: true };
+}
+
+export async function listWorkerInvitations(accountId: string) {
+  await workerAccount(accountId);
+  const preferences = await getJobPreferences(accountId);
+  if (!preferences.job_seeking) return [];
+  const now = new Date();
+  const rows = await db.select({ invitation: schema.jobInvitations, job: schema.jobPostings, provider: schema.serviceProviders })
+    .from(schema.jobInvitations).innerJoin(schema.jobPostings, eq(schema.jobInvitations.job_id, schema.jobPostings.id))
+    .innerJoin(schema.serviceProviders, eq(schema.jobPostings.provider_id, schema.serviceProviders.id))
+    .where(and(eq(schema.jobInvitations.worker_account_id, accountId), eq(schema.jobInvitations.status, 'pending')))
+    .orderBy(desc(schema.jobInvitations.created_at));
+  return rows.filter(({ invitation, job }) => invitation.expires_at > now && job.status === 'open' && (!job.closes_at || job.closes_at > now))
+    .map(({ invitation, job, provider }) => ({
+      id: invitation.id, message: invitation.message, expires_at: invitation.expires_at,
+      job_id: job.id, title: job.title, category: job.category, location: job.location,
+      employment_type: job.employment_type, description: job.description, organization_name: provider.display_name,
+    }));
+}
+
+export async function createJobInvitation(accountId: string, jobId: string, dto: any) {
+  const { account } = await employer(accountId);
+  const job = await db.query.jobPostings.findFirst({ where: (t, { and, eq }) => and(eq(t.id, jobId), eq(t.organization_account_id, account.id)) });
+  if (!job || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw notFound('Open job not found');
+  const workerId = String(dto.worker_account_id ?? '');
+  const worker = await db.query.accounts.findFirst({ where: (t, { and, eq, isNull }) => and(eq(t.id, workerId), eq(t.status, 'active'), isNull(t.deleted_at)) });
+  const profile = worker ? await db.query.careerProfiles.findFirst({ where: (t, { eq }) => eq(t.account_id, workerId) }) : null;
+  const person = worker ? await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray, isNull }) => and(eq(t.owner_account_id, workerId), inArray(t.member_type, ['self', 'employee']), isNull(t.deleted_at)) }) : null;
+  const ageMs = person ? Date.now() - new Date(person.birthdate).getTime() : 0;
+  const excluded = profile?.excluded_employer_account_ids ?? [];
+  const categoryMatch = profile?.job_categories?.some((v) => v.toLowerCase().includes(job.category.toLowerCase()) || job.category.toLowerCase().includes(v.toLowerCase()));
+  const locationMatch = profile?.job_locations?.some((v) => v.toLowerCase().includes(job.location.toLowerCase()) || job.location.toLowerCase().includes(v.toLowerCase()));
+  if (!worker || !['individual', 'user'].includes(worker.role) || !person || ageMs < 18 * 365.2425 * 24 * 60 * 60 * 1000
+    || profile?.job_seeking !== true || worker.parent_account_id === account.id || excluded.includes(account.id) || !categoryMatch || !locationMatch) {
+    throw forbidden('This person is not currently visible for a matching role and location');
+  }
+  const message = String(dto.message ?? '').trim().slice(0, 1200) || null;
+  const existing = await db.query.jobInvitations.findFirst({ where: (t, { and, eq }) => and(eq(t.job_id, job.id), eq(t.worker_account_id, workerId)) });
+  if (existing && ['pending', 'accepted'].includes(existing.status)) throw badRequest('An invitation already exists for this job and person');
+  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  if (existing) {
+    const [updated] = await db.update(schema.jobInvitations).set({ message, status: 'pending', expires_at: expiresAt, updated_at: new Date() }).where(eq(schema.jobInvitations.id, existing.id)).returning();
+    return updated;
+  }
+  const [invitation] = await db.insert(schema.jobInvitations).values({ job_id: job.id, worker_account_id: workerId, message, expires_at: expiresAt }).returning();
+  return invitation;
+}
+
+export async function respondToJobInvitation(accountId: string, invitationId: string, dto: any) {
+  await workerAccount(accountId);
+  const action = String(dto.action ?? '');
+  if (!['accept', 'decline'].includes(action)) throw badRequest('Choose accept or decline');
+  const invitation = await db.query.jobInvitations.findFirst({ where: (t, { and, eq }) => and(eq(t.id, invitationId), eq(t.worker_account_id, accountId)) });
+  if (!invitation || invitation.status !== 'pending' || invitation.expires_at <= new Date()) throw notFound('This invitation is no longer available');
+  if (action === 'decline') {
+    const [updated] = await db.update(schema.jobInvitations).set({ status: 'declined', updated_at: new Date() })
+      .where(and(eq(schema.jobInvitations.id, invitation.id), eq(schema.jobInvitations.status, 'pending'))).returning();
+    if (!updated) throw badRequest('This invitation has already been answered');
+    return { status: 'declined' };
+  }
+  const preferences = await getJobPreferences(accountId);
+  const job = await db.query.jobPostings.findFirst({ where: (t, { eq }) => eq(t.id, invitation.job_id) });
+  if (!preferences.job_seeking || !job || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw badRequest('This job or your job-seeking visibility is no longer active');
+  const sharedHistoryIds = words(dto.shared_history_ids, 20);
+  if (sharedHistoryIds.length) {
+    const verified = await db.query.careerHistory.findMany({ where: (t, { and, eq, inArray }) => and(
+      eq(t.worker_account_id, accountId), eq(t.verification_status, 'verified'), inArray(t.id, sharedHistoryIds),
+    ) });
+    if (verified.length !== sharedHistoryIds.length) throw badRequest('You can share only verified work records belonging to you');
+  }
+  const shareProfile = dto.share_profile === true;
+  return db.transaction(async (tx) => {
+    const [claimed] = await tx.update(schema.jobInvitations).set({ status: 'accepted', updated_at: new Date() })
+      .where(and(eq(schema.jobInvitations.id, invitation.id), eq(schema.jobInvitations.status, 'pending'))).returning();
+    if (!claimed) throw badRequest('This invitation has already been answered');
+    const previous = await tx.query.jobApplications.findFirst({ where: (t, { and, eq }) => and(eq(t.job_id, job.id), eq(t.worker_account_id, accountId)) });
+    if (previous && previous.status !== 'withdrawn') throw badRequest('You already have an active application for this job');
+    const [application] = previous
+      ? await tx.update(schema.jobApplications).set({ status: 'submitted', shared_profile: shareProfile, shared_history_ids: sharedHistoryIds, cover_note: null, updated_at: new Date() }).where(eq(schema.jobApplications.id, previous.id)).returning()
+      : await tx.insert(schema.jobApplications).values({ job_id: job.id, worker_account_id: accountId, status: 'submitted', shared_profile: shareProfile, shared_history_ids: sharedHistoryIds }).returning();
+    return { status: 'accepted', application_id: application.id };
+  });
 }
