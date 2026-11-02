@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { MAX_PHOTO_BYTES, fileToResizedDataUrl } from '@/lib/image';
 import { LargeTitleHeader, GlassButton, SectionLabel } from '@/components/ui/GlassCard';
 import { IOSListGroup, IOSInput, IOSSelect, IOSTextArea, IOSSwitch, IOSListRow } from '@/components/ui/IOSListGroup';
-import { SegmentedControl, EmptyState } from '@/components/ui/Control';
+import { EmptyState } from '@/components/ui/Control';
 
 const ACCOUNT_TYPES = {
   individual: { memberTypes: ['self'] },
@@ -107,6 +107,7 @@ export default function ProfileEditor() {
       )}
 
       <SectionLabel tone="blue">Person profiles</SectionLabel>
+      {user?.account_type !== 'individual' && <p className="mb-3 px-1 text-[13px] leading-5 text-slate-500">Choose a person below to edit their details. Each person has separate health, medical condition, residence, and vehicle records. If no person is listed, add one with the button below.</p>}
       {needsBootstrap ? (
         <div className="glass mb-4 rounded-button p-4 text-[14px] text-ink-secondary">
           <p className="mb-3">Your account doesn't have a personal profile yet. Create one to start saving your details and ID card.</p>
@@ -276,10 +277,8 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
   return (
     <div>
       <div className="mb-6">
-        <SegmentedControl
-          value={tab}
-          onChange={setTab}
-          options={[
+        <div role="tablist" aria-label="Person profile details" className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 sm:grid-cols-4 lg:grid-cols-7">
+          {[
             { value: 'basic', label: 'Basic' },
             { value: 'health', label: 'Health' },
             { value: 'residence', label: 'Residence' },
@@ -287,8 +286,8 @@ function ProfileForm({ profile, lookups, onSaveBasic, onSaveSubForms }: { profil
             { value: 'desperate', label: 'Medical' },
             { value: 'vehicles', label: 'Vehicles' },
             ...(profile.member_type !== 'underage' ? [{ value: 'employment', label: 'Work' }] : []),
-          ]}
-        />
+          ].map((item) => <button key={item.value} type="button" role="tab" aria-selected={tab === item.value} onClick={() => setTab(item.value)} className={`min-h-10 rounded-xl px-2 py-2 text-xs font-semibold transition-colors sm:text-[13px] ${tab === item.value ? 'bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'}`}>{item.label}</button>)}
+        </div>
       </div>
 
       {tab === 'basic' && (

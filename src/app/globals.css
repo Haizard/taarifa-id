@@ -184,21 +184,49 @@ form textarea::placeholder {
 }
 
 @media print {
+  @page {
+    size: 100mm 85mm;
+    margin: 0;
+  }
+
   body {
     background: #fff !important;
+    margin: 0 !important;
   }
-  body * {
-    visibility: hidden;
+
+  body.printing-id-card > :not(#print-root) {
+    display: none !important;
   }
-  .print-area,
-  .print-area * {
-    visibility: visible;
+
+  body.printing-id-card > #print-root {
+    display: block !important;
+    position: fixed !important;
+    top: 2mm !important;
+    left: 2mm !important;
+    width: 96mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+
+  body.printing-id-card #print-root .print-area {
+    width: 96mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.printing-id-card #print-root,
+  body.printing-id-card #print-root * {
+    visibility: visible !important;
+  }
+}
+
+@media screen {
+  body > #print-root {
+    display: none;
   }
 }
 

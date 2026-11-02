@@ -51,8 +51,23 @@ export default function PrintablePage() {
     });
 
   const handlePrint = () => {
+    const card = document.querySelector('.print-area');
+    if (!card) return toast.error('ID card preview is not ready yet');
+    const printRoot = document.createElement('div');
+    printRoot.id = 'print-root';
+    printRoot.appendChild(card.cloneNode(true));
+    document.body.appendChild(printRoot);
+    document.body.classList.add('printing-id-card');
+    let fallbackCleanup: number | undefined;
+    const cleanup = () => {
+      if (fallbackCleanup) window.clearTimeout(fallbackCleanup);
+      document.body.classList.remove('printing-id-card');
+      printRoot.remove();
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+    fallbackCleanup = window.setTimeout(cleanup, 120_000);
     toast.success('Opening print dialog…');
-    setTimeout(() => window.print(), 300);
+    setTimeout(() => window.print(), 200);
   };
 
   const FIELD_KEYS = ['first_name', 'last_name', 'gender', 'birthdate', 'nationality', 'fluent_language', 'blood_group', 'region', 'district', 'ward'];
@@ -106,7 +121,7 @@ export default function PrintablePage() {
 
       <SectionLabel tone="lavender">Card preview</SectionLabel>
       <div className="flex justify-center">
-        <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #4DA3FF, #A78BFA)' }}>
+        <div className="print-area relative w-full max-w-sm overflow-hidden rounded-[20px] p-6 shadow-glass" style={{ background: 'linear-gradient(135deg, #047857, #10b981)' }}>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-white/10" />
           <div className="relative text-white">
             <div className="flex items-start justify-between">
