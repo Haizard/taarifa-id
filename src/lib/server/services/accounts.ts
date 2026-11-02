@@ -90,6 +90,15 @@ export async function createSubAccount(parentId: string, dto: CreateSubAccountDt
     if (entity) await db.insert(schema.familyMembers).values({ family_id: entity.id, person_profile_id: memberProfile.id, member_role: memberType === 'underage' ? 'underage' : 'adult' });
   }
 
+  if (['business', 'school', 'institution'].includes(parent.account_type) && memberType === 'employee') {
+    await db.insert(schema.organizationMemberships).values({
+      organization_account_id: parent.id,
+      worker_account_id: sub.id,
+      invited_by_account_id: parent.id,
+      status: 'active',
+    }).onConflictDoNothing();
+  }
+
   await db.insert(schema.profileStatus).values({ account_id: sub.id, status: 'active' });
 
   return { ...sub, password_hash: undefined };

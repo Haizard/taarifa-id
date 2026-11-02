@@ -7,6 +7,7 @@ import { ClipboardList, MapPin, ShieldCheck } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components/ui/GlassCard';
+import { ComplaintEvidenceControls } from '@/components/marketplace/ComplaintEvidenceControls';
 
 type Provider = { id: string; services: Array<{ id: string; title: string; is_active: boolean }>; members: Array<{ id: string; display_name: string; member_type: string }> };
 type ServiceRequest = {
@@ -18,7 +19,7 @@ type ServiceRequest = {
   offers: Array<{ id: string; status: string; price_amount: string | null; message: string | null }>;
   review: { id: string; rating?: number; review?: string | null; provider_response?: string | null; moderation_status: string } | null;
 };
-type Complaint = { id: string; subject_account_id: string; subject_type: string; request_summary: string | null; service_title: string; category: string; description: string; subject_response: string | null; status: string; created_at: string };
+type Complaint = { id: string; subject_account_id: string; subject_type: string; request_summary: string | null; service_title: string; category: string; description: string; subject_response: string | null; status: string; created_at: string; evidence: Array<{ id: string; file_name: string; size_bytes: number }> };
 
 export default function ProviderRequestsPage() {
   const { user } = useAuthStore();
@@ -31,17 +32,17 @@ export default function ProviderRequestsPage() {
   const [reviewResponses, setReviewResponses] = useState<Record<string, { response: string; dispute: boolean }>>({});
   const respond = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => api.post(`/marketplace/requests/${id}/offers`, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); toast.success('Offer sent to the client'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); qc.invalidateQueries({ queryKey: ['provider-metrics'] }); toast.success('Offer sent to the client'); },
     onError: (e: any) => toast.error(e.message),
   });
   const advance = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/marketplace/requests/${id}`, { status }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); toast.success('Request status updated'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); qc.invalidateQueries({ queryKey: ['provider-metrics'] }); toast.success('Request status updated'); },
     onError: (e: any) => toast.error(e.message),
   });
   const changeAssignment = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { action?: string; worker_account_id?: string; assignment_id?: string } }) => api.post(`/marketplace/requests/${id}/assignments`, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); toast.success('Worker assignment updated'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); qc.invalidateQueries({ queryKey: ['provider-metrics'] }); toast.success('Worker assignment updated'); },
     onError: (e: any) => toast.error(e.message),
   });
   const respondToReview = useMutation({
@@ -51,7 +52,7 @@ export default function ProviderRequestsPage() {
   });
   const complaintResponses = useMutation({
     mutationFn: ({ id, response }: { id: string; response: string }) => api.post(`/marketplace/complaints/${id}/response`, { response }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-complaints'] }); toast.success('Complaint response sent to the client'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-complaints'] }); qc.invalidateQueries({ queryKey: ['provider-metrics'] }); toast.success('Complaint response sent to the client'); },
     onError: (e: any) => toast.error(e.message),
   });
   const [complaintDrafts, setComplaintDrafts] = useState<Record<string, string>>({});
@@ -107,7 +108,7 @@ export default function ProviderRequestsPage() {
           {request.review && <section className="mt-4 rounded-xl border border-glass-border bg-white/40 p-4">{request.review.moderation_status === 'removed' ? <p className="text-[13px] text-ink-tertiary">Client feedback was removed after platform review.</p> : <><div className="font-semibold text-ink-primary">Client review · {'★'.repeat(request.review.rating ?? 0)}{'☆'.repeat(5 - (request.review.rating ?? 0))}</div>{request.review.review && <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{request.review.review}</p>}{request.review.provider_response && <p className="mt-2 text-[12px] text-ink-tertiary">Your response: {request.review.provider_response}</p>}<form onSubmit={(e) => { e.preventDefault(); const draft = reviewResponses[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }; respondToReview.mutate({ id: request.review!.id, ...draft }); }} className="mt-3 space-y-2"><label className="block text-[12px] font-medium text-ink-secondary">Your response<textarea required maxLength={2000} value={reviewResponses[request.review.id]?.response ?? request.review.provider_response ?? ''} onChange={(e) => setReviewResponses((all) => ({ ...all, [request.review!.id]: { ...(all[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }), response: e.target.value } }))} className="mt-1 min-h-16 w-full rounded-lg border border-glass-border bg-white/70 px-3 py-2 text-[13px] text-ink-primary" /></label><label className="flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={reviewResponses[request.review.id]?.dispute ?? request.review.moderation_status === 'disputed'} onChange={(e) => setReviewResponses((all) => ({ ...all, [request.review!.id]: { ...(all[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }), dispute: e.target.checked } }))} />Request a platform review if this feedback is inaccurate or abusive</label><button type="submit" disabled={respondToReview.isPending} className="rounded-full bg-accent-primary px-4 py-2 text-[13px] font-semibold text-white">{respondToReview.isPending ? 'Saving…' : request.review.provider_response ? 'Update response' : 'Respond to review'}</button></form></>}</section>}
         </article>;
       })}</div>}
-      {(complaintsQuery.data ?? []).some((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)) && <section className="mt-8"><SectionLabel tone="red">Service complaint cases</SectionLabel><div className="space-y-3">{(complaintsQuery.data ?? []).filter((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)).map((item) => <article key={item.id} className="glass p-4"><div className="font-semibold text-ink-primary">{item.service_title} · {item.category.replaceAll('_', ' ')}</div>{item.request_summary && <div className="mt-1 text-[12px] text-ink-tertiary">{item.request_summary}</div>}<p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{item.description}</p><form onSubmit={(event) => { event.preventDefault(); complaintResponses.mutate({ id: item.id, response: complaintDrafts[item.id] ?? item.subject_response ?? '' }); }} className="mt-3 space-y-2"><textarea required minLength={5} maxLength={3000} value={complaintDrafts[item.id] ?? item.subject_response ?? ''} onChange={(event) => setComplaintDrafts((all) => ({ ...all, [item.id]: event.target.value }))} placeholder="Respond with your account of the service and next steps." className="min-h-16 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /><button disabled={complaintResponses.isPending} className="rounded-full bg-accent-primary/10 px-4 py-2 text-[12px] font-semibold text-accent-primary">{complaintResponses.isPending ? 'Sending…' : 'Send complaint response'}</button></form></article>)}</div></section>}
+      {(complaintsQuery.data ?? []).some((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)) && <section className="mt-8"><SectionLabel tone="red">Service complaint cases</SectionLabel><div className="space-y-3">{(complaintsQuery.data ?? []).filter((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)).map((item) => <article key={item.id} className="glass p-4"><div className="font-semibold text-ink-primary">{item.service_title} · {item.category.replaceAll('_', ' ')}</div>{item.request_summary && <div className="mt-1 text-[12px] text-ink-tertiary">{item.request_summary}</div>}<p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{item.description}</p><ComplaintEvidenceControls caseId={item.id} status={item.status} evidence={item.evidence ?? []} /><form onSubmit={(event) => { event.preventDefault(); complaintResponses.mutate({ id: item.id, response: complaintDrafts[item.id] ?? item.subject_response ?? '' }); }} className="mt-3 space-y-2"><textarea required minLength={5} maxLength={3000} value={complaintDrafts[item.id] ?? item.subject_response ?? ''} onChange={(event) => setComplaintDrafts((all) => ({ ...all, [item.id]: event.target.value }))} placeholder="Respond with your account of the service and next steps." className="min-h-16 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /><button disabled={complaintResponses.isPending} className="rounded-full bg-accent-primary/10 px-4 py-2 text-[12px] font-semibold text-accent-primary">{complaintResponses.isPending ? 'Sending…' : 'Send complaint response'}</button></form></article>)}</div></section>}
     </div>
   );
 }

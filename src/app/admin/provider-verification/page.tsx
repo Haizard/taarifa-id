@@ -8,14 +8,21 @@ import { api } from '@/lib/api';
 import { Badge, LargeTitleHeader } from '@/components/ui/GlassCard';
 
 type Request = { id: string; provider_name: string; provider_category: string; organization_type: string; username: string; region: string | null; legal_name: string; registration_reference: string; evidence_notes: string | null; evidence_file_name: string | null; evidence_size_bytes: number | null; created_at: string };
+type Appeal = { id: string; request_id: string; provider_name: string; username: string; legal_name: string; registration_reference: string; appeal_note: string; evidence_file_name: string | null };
 
 export default function ProviderVerificationPage() {
   const qc = useQueryClient();
   const [notes, setNotes] = useState<Record<string, string>>({});
   const { data, isLoading } = useQuery({ queryKey: ['provider-verification-queue'], queryFn: () => api.get<Request[]>('/admin/providers/verification-requests') });
+  const appealsQuery = useQuery({ queryKey: ['provider-verification-appeals'], queryFn: () => api.get<Appeal[]>('/admin/providers/verification-appeals') });
   const review = useMutation({
     mutationFn: ({ id, outcome }: { id: string; outcome: 'approved' | 'rejected' }) => api.patch(`/admin/providers/verification-requests/${id}`, { outcome, note: notes[id] ?? '' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification-queue'] }); toast.success('Provider verification decision recorded'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const reviewAppeal = useMutation({
+    mutationFn: ({ id, outcome }: { id: string; outcome: 'approved' | 'rejected' }) => api.patch(`/admin/providers/verification-appeals/${id}`, { outcome, note: notes[`appeal-${id}`] ?? '' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification-appeals'] }); toast.success('Reconsideration decision recorded'); },
     onError: (e: any) => toast.error(e.message),
   });
   const downloadEvidence = async (request: Request) => {
@@ -34,6 +41,7 @@ export default function ProviderVerificationPage() {
   };
   return <div className="mx-auto max-w-4xl">
     <LargeTitleHeader title="Provider verification" subtitle="Review organization registration details. Approval enables job posting, candidate search, invitations, and applicant career-data access. Decisions are audit logged." />
+    <section className="mb-6"><h2 className="mb-3 text-[16px] font-semibold text-ink-primary">Reconsideration requests</h2>{appealsQuery.isLoading ? <div className="glass p-4 text-[13px] text-ink-secondary">Loading appeals…</div> : !appealsQuery.data?.length ? <div className="glass p-4 text-[13px] text-ink-secondary">No pending reconsideration requests.</div> : <div className="space-y-3">{appealsQuery.data.map((appeal) => <article key={appeal.id} className="glass p-4"><div className="font-semibold text-ink-primary">{appeal.provider_name} · @{appeal.username}</div><div className="mt-1 text-[12px] text-ink-tertiary">{appeal.legal_name} · {appeal.registration_reference}</div>{appeal.evidence_file_name && <button onClick={() => downloadEvidence({ id: appeal.request_id, evidence_file_name: appeal.evidence_file_name } as Request)} className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent-primary/10 px-3 py-2 text-[12px] font-semibold text-accent-primary"><Download size={14} />Review {appeal.evidence_file_name}</button>}<p className="mt-3 whitespace-pre-wrap text-[13px] text-ink-secondary">{appeal.appeal_note}</p><label className="mt-3 block text-[12px] font-medium text-ink-secondary">Decision note<textarea minLength={4} maxLength={2000} value={notes[`appeal-${appeal.id}`] ?? ''} onChange={(e) => setNotes((all) => ({ ...all, [`appeal-${appeal.id}`]: e.target.value }))} className="mt-1 min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /></label><div className="mt-3 flex gap-2"><button onClick={() => reviewAppeal.mutate({ id: appeal.id, outcome: 'approved' })} disabled={reviewAppeal.isPending || (notes[`appeal-${appeal.id}`] ?? '').trim().length < 4} className="rounded-full bg-accent-success/15 px-4 py-2 text-[12px] font-semibold text-accent-success">Approve appeal</button><button onClick={() => reviewAppeal.mutate({ id: appeal.id, outcome: 'rejected' })} disabled={reviewAppeal.isPending || (notes[`appeal-${appeal.id}`] ?? '').trim().length < 4} className="rounded-full bg-accent-danger/10 px-4 py-2 text-[12px] font-semibold text-accent-danger">Reject appeal</button></div></article>)}</div>}</section>
     <div className="mb-4 rounded-xl bg-accent-warning/10 p-3 text-[12px] text-ink-secondary">Review submitted documents and verify them through the organization’s appropriate official channels before approval. Evidence files are private and available only to system administrators.</div>
     {isLoading ? <div className="glass p-6 text-center text-ink-secondary">Loading verification requests…</div> : !data?.length ? <div className="glass p-8 text-center"><BadgeCheck size={30} className="mx-auto mb-3 text-accent-primary" /><div className="font-semibold text-ink-primary">No pending requests</div><p className="mt-1 text-[14px] text-ink-secondary">Submitted provider records will appear here.</p></div> : <div className="space-y-4">{data.map((request) => <article key={request.id} className="glass p-5">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-[16px] font-semibold text-ink-primary">{request.provider_name}</div><div className="mt-1 text-[12px] text-ink-tertiary">@{request.username} · {request.organization_type} · {request.provider_category}{request.region ? ` · ${request.region}` : ''}</div></div><Badge tone="yellow">Pending review</Badge></div>

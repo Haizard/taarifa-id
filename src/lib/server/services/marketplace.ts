@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray, notInArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, notInArray, or, sql } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, conflict, forbidden, notFound } from '../errors';
+import { notifyAccount } from './notifications';
 
 type Category = typeof schema.serviceCategoryEnum.enumValues[number];
 type FormField = schema.ServiceFormField;
@@ -22,7 +23,11 @@ async function getProvider(accountId: string) {
   return db.query.serviceProviders.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
 }
 
-async function listOrganizationWorkers(accountId: string) {
+async function listOrganizationWorkers(accountId: string, schoolRoster = false) {
+  const linked = await db.select({ worker_account_id: schema.organizationMemberships.worker_account_id })
+    .from(schema.organizationMemberships)
+    .where(and(eq(schema.organizationMemberships.organization_account_id, accountId), eq(schema.organizationMemberships.status, 'active')));
+  const memberIds = [...new Set(linked.map((row) => row.worker_account_id))];
   const rows = await db.select({
     id: schema.accounts.id,
     first_name: schema.personProfiles.first_name,
@@ -32,14 +37,8 @@ async function listOrganizationWorkers(accountId: string) {
     birthdate: schema.personProfiles.birthdate,
   }).from(schema.accounts)
     .innerJoin(schema.personProfiles, eq(schema.personProfiles.owner_account_id, schema.accounts.id))
-    .where(and(
-      eq(schema.accounts.parent_account_id, accountId),
-      eq(schema.accounts.role, 'user'),
-      eq(schema.accounts.status, 'active'),
-      eq(schema.personProfiles.member_type, 'employee'),
-      sql`${schema.accounts.deleted_at} is null`,
-    ));
-  const adultWorkers = rows.filter((worker) => Date.now() - new Date(worker.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000);
+    .where(and(inArray(schema.accounts.role, ['user', 'individual']), eq(schema.accounts.status, 'active'), inArray(schema.personProfiles.member_type, schoolRoster ? ['employee', 'student', 'underage'] : ['employee']), sql`${schema.accounts.deleted_at} is null`, memberIds.length ? inArray(schema.accounts.id, memberIds) : sql`false`));
+  const adultWorkers = rows.filter((worker) => worker.member_type === 'employee' && Date.now() - new Date(worker.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000);
   const workerIds = adultWorkers.map((worker) => worker.id);
   const adultWorkerIds = new Set(workerIds);
   const ratings = workerIds.length ? await db.select({
@@ -76,7 +75,7 @@ async function attachAssignments(requestRows: any[], includeHistory = false) {
       ...(includeHistory ? { worker_account_id: row.worker.id } : {}),
       display_name: row.profile.common_name?.trim() || `${row.profile.first_name} ${row.profile.last_name}`.trim(),
       member_type: row.profile.member_type,
-      ratings_available: Date.now() - new Date(row.profile.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000,
+      ratings_available: row.profile.member_type === 'employee' && Date.now() - new Date(row.profile.birthdate).getTime() >= 18 * 365.2425 * 24 * 60 * 60 * 1000,
       status: row.assignment.status,
       assigned_at: row.assignment.assigned_at,
       released_at: row.assignment.released_at,
@@ -93,7 +92,10 @@ async function attachWorkerReviews(requestRows: any[]) {
     request_id: schema.serviceWorkerReviews.request_id,
     assignment_id: schema.serviceWorkerReviews.assignment_id,
     rating: schema.serviceWorkerReviews.rating,
+    rating_dimensions: schema.serviceWorkerReviews.rating_dimensions,
     review: schema.serviceWorkerReviews.review,
+    edit_deadline: schema.serviceWorkerReviews.edit_deadline,
+    edited_at: schema.serviceWorkerReviews.edited_at,
     worker_response: schema.serviceWorkerReviews.worker_response,
     worker_disputed_at: schema.serviceWorkerReviews.worker_disputed_at,
     moderation_status: schema.serviceWorkerReviews.moderation_status,
@@ -235,8 +237,38 @@ export async function getMyProvider(accountId: string) {
     where: (t, { eq }) => eq(t.provider_id, provider.id),
     orderBy: (t, { desc }) => [desc(t.created_at)],
   });
-  const members = await listOrganizationWorkers(accountId);
+  const members = await listOrganizationWorkers(accountId, provider.category === 'school');
   return { ...provider, services, members };
+}
+
+export async function getProviderOperationalMetrics(accountId: string) {
+  await requireProviderAccount(accountId);
+  const provider = await getProvider(accountId);
+  if (!provider) throw notFound('Provider profile not found');
+  const requests = await db.select({ id: schema.serviceRequests.id, status: schema.serviceRequests.status, created_at: schema.serviceRequests.created_at })
+    .from(schema.serviceRequests).innerJoin(schema.providerServices, eq(schema.providerServices.id, schema.serviceRequests.provider_service_id))
+    .where(eq(schema.providerServices.provider_id, provider.id));
+  const responses = await db.select({ request_created_at: schema.serviceRequests.created_at, response_created_at: schema.serviceOffers.created_at })
+    .from(schema.serviceOffers).innerJoin(schema.serviceRequests, eq(schema.serviceOffers.request_id, schema.serviceRequests.id))
+    .where(eq(schema.serviceOffers.provider_id, provider.id));
+  const reviewStats = await db.select({ rating: sql<number>`round(avg(${schema.serviceReviews.rating})::numeric, 1)::float`, count: sql<number>`count(*)::int` })
+    .from(schema.serviceReviews).where(and(eq(schema.serviceReviews.provider_id, provider.id), notInArray(schema.serviceReviews.moderation_status, ['disputed', 'removed'])));
+  const [openComplaints] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.serviceComplaintCases)
+    .innerJoin(schema.serviceRequests, eq(schema.serviceComplaintCases.request_id, schema.serviceRequests.id))
+    .innerJoin(schema.providerServices, eq(schema.serviceRequests.provider_service_id, schema.providerServices.id))
+    .where(and(eq(schema.providerServices.provider_id, provider.id), inArray(schema.serviceComplaintCases.status, ['open', 'in_review'])));
+  const averageResponseMinutes = responses.length ? Math.round(responses.reduce((sum, row) => sum + Math.max(0, row.response_created_at.getTime() - row.request_created_at.getTime()) / 60_000, 0) / responses.length) : null;
+  return {
+    total_requests: requests.length,
+    active_requests: requests.filter((request) => ['accepted', 'in_progress'].includes(request.status)).length,
+    completed_requests: requests.filter((request) => request.status === 'completed').length,
+    cancelled_requests: requests.filter((request) => request.status === 'cancelled').length,
+    response_rate: requests.length ? Math.round(responses.length / requests.length * 100) : null,
+    average_first_response_minutes: averageResponseMinutes,
+    average_rating: reviewStats[0]?.rating ?? null,
+    review_count: reviewStats[0]?.count ?? 0,
+    open_complaints: openComplaints.count,
+  };
 }
 
 export async function saveProvider(accountId: string, dto: any) {
@@ -388,8 +420,12 @@ async function attachOffers(requestRows: any[]) {
     id: schema.serviceReviews.id,
     request_id: schema.serviceReviews.request_id,
     rating: schema.serviceReviews.rating,
+    rating_dimensions: schema.serviceReviews.rating_dimensions,
     review: schema.serviceReviews.review,
+    edit_deadline: schema.serviceReviews.edit_deadline,
+    edited_at: schema.serviceReviews.edited_at,
     provider_response: schema.serviceReviews.provider_response,
+    provider_disputed_at: schema.serviceReviews.provider_disputed_at,
     moderation_status: schema.serviceReviews.moderation_status,
   }).from(schema.serviceReviews).where(inArray(schema.serviceReviews.request_id, ids));
   const reviewMap = new Map(reviews.map((review) => [review.request_id, review.moderation_status === 'removed' ? { id: review.id, moderation_status: review.moderation_status } : review]));
@@ -488,8 +524,18 @@ export async function updateServiceAssignment(accountId: string, requestId: stri
   }
 
   const workerAccountId = String(dto.worker_account_id ?? '');
-  const worker = (await listOrganizationWorkers(accountId)).find((member) => member.id === workerAccountId);
+  const worker = (await listOrganizationWorkers(accountId, provider.category === 'school')).find((member) => member.id === workerAccountId);
   if (!worker) throw badRequest('Choose an active employee account managed by this organization');
+  const workerProfile = await db.query.personProfiles.findFirst({ where: (t, { and, eq, isNull, inArray }) => and(eq(t.owner_account_id, workerAccountId), inArray(t.member_type, provider.category === 'school' ? ['employee', 'student', 'underage'] : ['employee']), isNull(t.deleted_at)) });
+  if (!workerProfile) throw badRequest('This account has no active employee profile');
+  const isMinor = Date.now() - new Date(workerProfile.birthdate).getTime() < 18 * 365.2425 * 24 * 60 * 60 * 1000;
+  if (isMinor) {
+    const service = await db.query.providerServices.findFirst({ where: (t, { eq }) => eq(t.id, request.provider_service_id) });
+    const consent = await db.query.serviceGuardianConsents.findFirst({ where: (t, { and, eq, isNull }) => and(
+      eq(t.request_id, request.id), eq(t.minor_account_id, workerAccountId), eq(t.guardian_account_id, request.requester_account_id), isNull(t.revoked_at),
+    ) });
+    if (provider.category !== 'school' || !service || !consent) throw forbidden('A minor may only be assigned to a school service after their family guardian records consent for this request');
+  }
   const existing = await db.query.serviceAssignments.findFirst({ where: (t, { and, eq }) => and(
     eq(t.request_id, request.id), eq(t.worker_account_id, workerAccountId),
   ) });
@@ -517,7 +563,7 @@ export async function updateServiceAssignment(accountId: string, requestId: stri
 
 export async function listMyServiceAssignments(accountId: string) {
   const profile = await db.query.personProfiles.findFirst({ where: (t, { eq }) => eq(t.owner_account_id, accountId) });
-  if (!profile || profile.member_type !== 'employee') return [];
+  if (!profile || !['employee', 'student', 'underage'].includes(profile.member_type)) return [];
   const rows = await db.select({ assignment: schema.serviceAssignments, request: schema.serviceRequests, service: schema.providerServices, provider: schema.serviceProviders })
     .from(schema.serviceAssignments)
     .innerJoin(schema.serviceRequests, eq(schema.serviceAssignments.request_id, schema.serviceRequests.id))
@@ -546,7 +592,10 @@ export async function listMyServiceAssignments(accountId: string) {
     id: schema.serviceWorkerReviews.id,
     assignment_id: schema.serviceWorkerReviews.assignment_id,
     rating: schema.serviceWorkerReviews.rating,
+    rating_dimensions: schema.serviceWorkerReviews.rating_dimensions,
     review: schema.serviceWorkerReviews.review,
+    edit_deadline: schema.serviceWorkerReviews.edit_deadline,
+    edited_at: schema.serviceWorkerReviews.edited_at,
     worker_response: schema.serviceWorkerReviews.worker_response,
     worker_disputed_at: schema.serviceWorkerReviews.worker_disputed_at,
     moderation_status: schema.serviceWorkerReviews.moderation_status,
@@ -612,6 +661,7 @@ export async function createReview(accountId: string, requestId: string, dto: an
   if (!accepted) throw badRequest('No provider offer was accepted for this request');
   const rating = Number(dto.rating);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw badRequest('Choose a rating from 1 to 5');
+  const ratingDimensions = cleanRatingDimensions(dto.rating_dimensions);
   const existing = await db.query.serviceReviews.findFirst({ where: (t, { eq }) => eq(t.request_id, request.id) });
   if (existing) throw conflict('You have already reviewed this service');
   const [review] = await db.insert(schema.serviceReviews).values({
@@ -619,7 +669,9 @@ export async function createReview(accountId: string, requestId: string, dto: an
     provider_id: accepted.provider_id,
     reviewer_account_id: accountId,
     rating,
+    rating_dimensions: ratingDimensions,
     review: String(dto.review ?? '').trim().slice(0, 2000) || null,
+    edit_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   }).returning();
   return review;
 }
@@ -643,6 +695,7 @@ export async function createWorkerReview(accountId: string, requestId: string, d
   if (!accepted) throw badRequest('The assigned organization was not selected for this service');
   const rating = Number(dto.rating);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw badRequest('Choose a rating from 1 to 5');
+  const ratingDimensions = cleanRatingDimensions(dto.rating_dimensions);
   const existing = await db.query.serviceWorkerReviews.findFirst({ where: (t, { and, eq }) => and(
     eq(t.request_id, request.id), eq(t.worker_account_id, assignment.worker_account_id),
   ) });
@@ -654,9 +707,43 @@ export async function createWorkerReview(accountId: string, requestId: string, d
     worker_account_id: assignment.worker_account_id,
     reviewer_account_id: accountId,
     rating,
+    rating_dimensions: ratingDimensions,
     review: String(dto.review ?? '').trim().slice(0, 2000) || null,
+    edit_deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   }).returning();
   return { id: review.id, rating: review.rating, review: review.review, created_at: review.created_at };
+}
+
+const ratingDimensionKeys = ['communication', 'punctuality', 'care', 'outcome'] as const;
+function cleanRatingDimensions(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw badRequest('Rate communication, punctuality, care, and outcome');
+  const result: Record<string, number> = {};
+  for (const key of ratingDimensionKeys) {
+    const rating = Number((value as Record<string, unknown>)[key]);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw badRequest(`Choose a ${key} rating from 1 to 5`);
+    result[key] = rating;
+  }
+  return result;
+}
+
+export async function editServiceReview(accountId: string, reviewId: string, dto: any) {
+  const rating = Number(dto.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw badRequest('Choose a rating from 1 to 5');
+  const dimensions = cleanRatingDimensions(dto.rating_dimensions);
+  const [updated] = await db.update(schema.serviceReviews).set({ rating, rating_dimensions: dimensions, review: String(dto.review ?? '').trim().slice(0, 2000) || null, edited_at: new Date(), updated_at: new Date() })
+    .where(and(eq(schema.serviceReviews.id, reviewId), eq(schema.serviceReviews.reviewer_account_id, accountId), eq(schema.serviceReviews.moderation_status, 'active'), isNull(schema.serviceReviews.provider_disputed_at), sql`${schema.serviceReviews.provider_response} is null`, gt(schema.serviceReviews.edit_deadline, new Date()))).returning();
+  if (!updated) throw badRequest('This review can no longer be edited. The 7-day edit window may have ended or the provider has responded or disputed it.');
+  return updated;
+}
+
+export async function editWorkerReview(accountId: string, reviewId: string, dto: any) {
+  const rating = Number(dto.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw badRequest('Choose a rating from 1 to 5');
+  const dimensions = cleanRatingDimensions(dto.rating_dimensions);
+  const [updated] = await db.update(schema.serviceWorkerReviews).set({ rating, rating_dimensions: dimensions, review: String(dto.review ?? '').trim().slice(0, 2000) || null, edited_at: new Date(), updated_at: new Date() })
+    .where(and(eq(schema.serviceWorkerReviews.id, reviewId), eq(schema.serviceWorkerReviews.reviewer_account_id, accountId), eq(schema.serviceWorkerReviews.moderation_status, 'active'), isNull(schema.serviceWorkerReviews.worker_disputed_at), sql`${schema.serviceWorkerReviews.worker_response} is null`, gt(schema.serviceWorkerReviews.edit_deadline, new Date()))).returning();
+  if (!updated) throw badRequest('This review can no longer be edited. The 7-day edit window may have ended or the employee has responded or disputed it.');
+  return updated;
 }
 
 export async function respondToWorkerReview(accountId: string, reviewId: string, dto: any) {
@@ -825,6 +912,7 @@ export async function createServiceComplaint(accountId: string, requestId: strin
     await logComplaintEvent(tx, created.id, accountId, 'created', category);
     return [created];
   });
+  await notifyAccount(subjectId, `complaint-created:${caseRow.id}`, 'complaint', 'A service complaint was filed', `A client opened a ${category.replaceAll('_', ' ')} case about this service. Review the case and respond.`, subjectType === 'worker' ? '/dashboard/work' : '/dashboard/provider/requests');
   return { id: caseRow.id, status: caseRow.status, subject_type: caseRow.subject_type };
 }
 
@@ -839,10 +927,14 @@ export async function listMyServiceComplaints(accountId: string) {
   if (rows.length) await db.insert(schema.serviceComplaintCaseEvents).values(rows.map(({ complaint }) => ({
     complaint_case_id: complaint.id, actor_account_id: accountId, event_type: 'viewed', note: null,
   })));
-  return rows.map(({ complaint, request, service, provider }) => ({
-    ...complaint, service_request_id: request.id, request_summary: request.summary,
+  const evidence = rows.length ? await db.select({ id: schema.serviceComplaintEvidence.id, complaint_case_id: schema.serviceComplaintEvidence.complaint_case_id, file_name: schema.serviceComplaintEvidence.file_name, mime_type: schema.serviceComplaintEvidence.mime_type, size_bytes: schema.serviceComplaintEvidence.size_bytes, uploader_account_id: schema.serviceComplaintEvidence.uploader_account_id, created_at: schema.serviceComplaintEvidence.created_at }).from(schema.serviceComplaintEvidence).where(inArray(schema.serviceComplaintEvidence.complaint_case_id, rows.map(({ complaint }) => complaint.id))) : [];
+  return rows.map(({ complaint, request, service, provider }) => {
+    const { investigation_note: _privateInvestigationNote, ...participantComplaint } = complaint;
+    return {
+    ...participantComplaint, service_request_id: request.id, request_summary: request.summary,
     service_title: service.title, provider_name: provider.display_name,
-  }));
+    evidence: evidence.filter((item) => item.complaint_case_id === complaint.id),
+  }; });
 }
 
 export async function respondToServiceComplaint(accountId: string, complaintId: string, dto: any) {
@@ -859,6 +951,7 @@ export async function respondToServiceComplaint(accountId: string, complaintId: 
     return result;
   });
   if (!updated) throw badRequest('This complaint is already closed');
+  await notifyAccount(complaint.reporter_account_id, `complaint-response:${complaint.id}:${updated.updated_at.getTime()}`, 'complaint', 'A response was added to your service complaint', 'The organization or worker added a response to your case.', '/dashboard/requests');
   return { id: updated.id, status: updated.status, subject_response: updated.subject_response };
 }
 
@@ -877,9 +970,11 @@ export async function listOpenServiceComplaints(adminId: string) {
   const names = personIds.length ? await db.select({ id: schema.accounts.id, first_name: schema.personProfiles.first_name, last_name: schema.personProfiles.last_name, common_name: schema.personProfiles.common_name })
     .from(schema.accounts).leftJoin(schema.personProfiles, eq(schema.personProfiles.owner_account_id, schema.accounts.id)).where(inArray(schema.accounts.id, personIds)) : [];
   const nameMap = new Map(names.map((row) => [row.id, row.common_name?.trim() || `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()]));
+  const evidence = rows.length ? await db.select({ id: schema.serviceComplaintEvidence.id, complaint_case_id: schema.serviceComplaintEvidence.complaint_case_id, file_name: schema.serviceComplaintEvidence.file_name, mime_type: schema.serviceComplaintEvidence.mime_type, size_bytes: schema.serviceComplaintEvidence.size_bytes, created_at: schema.serviceComplaintEvidence.created_at }).from(schema.serviceComplaintEvidence).where(inArray(schema.serviceComplaintEvidence.complaint_case_id, rows.map(({ complaint }) => complaint.id))) : [];
   return rows.map(({ complaint, request, service, provider }) => ({
     ...complaint, request_summary: request.summary, service_title: service.title,
     provider_name: provider.display_name, subject_name: nameMap.get(complaint.subject_account_id) || 'Provider organization',
+    evidence: evidence.filter((item) => item.complaint_case_id === complaint.id),
   }));
 }
 
@@ -888,15 +983,70 @@ export async function resolveServiceComplaint(adminId: string, complaintId: stri
   if (!['resolved', 'dismissed'].includes(outcome)) throw badRequest('Choose resolve or dismiss');
   const note = String(dto.note ?? '').trim().slice(0, 2000);
   if (note.length < 4) throw badRequest('Add a resolution note');
+  const investigationNote = String(dto.investigation_note ?? '').trim().slice(0, 5000) || null;
+  const complaint = await db.query.serviceComplaintCases.findFirst({ where: (t, { eq }) => eq(t.id, complaintId) });
+  if (!complaint) throw notFound('Complaint case not found');
   const [updated] = await db.transaction(async (tx) => {
     const result = await tx.update(schema.serviceComplaintCases).set({
-      status: outcome as 'resolved' | 'dismissed', resolution_note: note, resolved_by_account_id: adminId, resolved_at: new Date(), updated_at: new Date(),
+      status: outcome as 'resolved' | 'dismissed', resolution_note: note, investigation_note: investigationNote, resolved_by_account_id: adminId, resolved_at: new Date(), updated_at: new Date(),
     }).where(and(eq(schema.serviceComplaintCases.id, complaintId), inArray(schema.serviceComplaintCases.status, ['open', 'in_review']))).returning();
     if (result[0]) await logComplaintEvent(tx, complaintId, adminId, outcome, note);
     return result;
   });
   if (!updated) throw notFound('Open complaint not found');
+  await notifyAccount(complaint.reporter_account_id, `complaint-decision-reporter:${complaint.id}:${updated.updated_at.getTime()}`, 'complaint', 'Your service complaint was reviewed', `The platform ${outcome === 'resolved' ? 'resolved' : 'dismissed'} the case. Review the decision and appeal within 14 days if needed.`, '/dashboard/requests');
+  await notifyAccount(complaint.subject_account_id, `complaint-decision-subject:${complaint.id}:${updated.updated_at.getTime()}`, 'complaint', 'A service complaint decision was made', `The platform ${outcome === 'resolved' ? 'resolved' : 'dismissed'} a complaint about this service.`, complaint.subject_type === 'worker' ? '/dashboard/work' : '/dashboard/provider/requests');
   return { id: updated.id, status: updated.status };
+}
+
+export async function submitServiceComplaintAppeal(accountId: string, complaintId: string, dto: any) {
+  const complaint = await db.query.serviceComplaintCases.findFirst({ where: (t, { eq }) => eq(t.id, complaintId) });
+  if (!complaint || complaint.reporter_account_id !== accountId) throw forbidden('Only the client who filed this case can appeal it');
+  if (!['resolved', 'dismissed'].includes(complaint.status) || complaint.appealed_at) throw badRequest('This complaint is not eligible for another appeal');
+  if (!complaint.resolved_at || Date.now() - complaint.resolved_at.getTime() > 14 * 24 * 60 * 60 * 1000) throw badRequest('The 14-day appeal window has closed');
+  const appealNote = String(dto.appeal_note ?? '').trim().slice(0, 3000);
+  if (appealNote.length < 20) throw badRequest('Explain why you are appealing (at least 20 characters)');
+  const [updated] = await db.transaction(async (tx) => {
+    const rows = await tx.update(schema.serviceComplaintCases).set({ status: 'in_review', appeal_note: appealNote, appealed_at: new Date(), resolved_at: null, resolved_by_account_id: null, updated_at: new Date() })
+      .where(and(eq(schema.serviceComplaintCases.id, complaint.id), inArray(schema.serviceComplaintCases.status, ['resolved', 'dismissed']), isNull(schema.serviceComplaintCases.appealed_at))).returning();
+    if (rows[0]) await logComplaintEvent(tx, complaint.id, accountId, 'appeal_submitted', appealNote);
+    return rows;
+  });
+  if (!updated) throw badRequest('This complaint was already appealed');
+  await notifyAccount(complaint.subject_account_id, `complaint-appeal:${complaint.id}`, 'complaint', 'A client appealed a complaint decision', 'The platform reopened a service case after a client appeal.', complaint.subject_type === 'worker' ? '/dashboard/work' : '/dashboard/provider/requests');
+  return { id: updated.id, status: updated.status };
+}
+
+export async function addServiceComplaintEvidence(accountId: string, complaintId: string, dto: any) {
+  const complaint = await db.query.serviceComplaintCases.findFirst({ where: (t, { eq }) => eq(t.id, complaintId) });
+  if (!complaint || ![complaint.reporter_account_id, complaint.subject_account_id].includes(accountId)) throw forbidden('Only the client and named subject can add case evidence');
+  if (!['open', 'in_review'].includes(complaint.status)) throw badRequest('Evidence upload is closed for this case');
+  const count = await db.select({ id: schema.serviceComplaintEvidence.id }).from(schema.serviceComplaintEvidence).where(eq(schema.serviceComplaintEvidence.complaint_case_id, complaintId));
+  if (count.length >= 5) throw badRequest('A complaint can include up to five evidence files');
+  const fileName = String(dto.file_name ?? '').trim().replace(/[\\/\0-\x1f]/g, '_').slice(0, 255);
+  const mimeType = String(dto.mime_type ?? '').trim().toLowerCase();
+  const encoded = String(dto.base64 ?? '').trim();
+  if (!fileName || !['application/pdf', 'image/jpeg', 'image/png'].includes(mimeType) || !encoded || encoded.length > 2_800_000 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) throw badRequest('Upload a PDF, JPEG, or PNG file up to 2 MB');
+  const document = Buffer.from(encoded, 'base64');
+  if (!document.length || document.length > 2 * 1024 * 1024) throw badRequest('Evidence files must not exceed 2 MB');
+  const signatureMatches = mimeType === 'application/pdf' ? document.subarray(0, 5).toString('ascii') === '%PDF-'
+    : mimeType === 'image/png' ? document.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+      : document[0] === 0xff && document[1] === 0xd8 && document[2] === 0xff;
+  if (!signatureMatches) throw badRequest('The evidence content does not match its file type');
+  const [evidence] = await db.insert(schema.serviceComplaintEvidence).values({ complaint_case_id: complaintId, uploader_account_id: accountId, file_name: fileName, mime_type: mimeType, size_bytes: document.length, document }).returning({ id: schema.serviceComplaintEvidence.id, file_name: schema.serviceComplaintEvidence.file_name });
+  await db.insert(schema.serviceComplaintCaseEvents).values({ complaint_case_id: complaintId, actor_account_id: accountId, event_type: 'evidence_uploaded', note: fileName });
+  const otherParty = accountId === complaint.reporter_account_id ? complaint.subject_account_id : complaint.reporter_account_id;
+  await notifyAccount(otherParty, `complaint-evidence:${complaintId}:${evidence.id}`, 'complaint', 'New evidence was added to a service case', 'A participant uploaded evidence to the complaint case.', accountId === complaint.reporter_account_id ? (complaint.subject_type === 'worker' ? '/dashboard/work' : '/dashboard/provider/requests') : '/dashboard/requests');
+  return evidence;
+}
+
+export async function getServiceComplaintEvidence(accountId: string, complaintId: string, evidenceId: string) {
+  const complaint = await db.query.serviceComplaintCases.findFirst({ where: (t, { eq }) => eq(t.id, complaintId) });
+  const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
+  if (!complaint || !account || (complaint.reporter_account_id !== accountId && complaint.subject_account_id !== accountId && account.role !== 'system_admin')) throw forbidden('You cannot view this complaint evidence');
+  const evidence = await db.query.serviceComplaintEvidence.findFirst({ where: (t, { and, eq }) => and(eq(t.id, evidenceId), eq(t.complaint_case_id, complaintId)) });
+  if (!evidence) throw notFound('Complaint evidence not found');
+  return { file_name: evidence.file_name, mime_type: evidence.mime_type, base64: Buffer.from(evidence.document).toString('base64') };
 }
 
 export async function updateRequestStatus(accountId: string, requestId: string, dto: any) {
@@ -915,6 +1065,13 @@ export async function updateRequestStatus(accountId: string, requestId: string, 
   if (dto.status === 'in_progress') {
     const assignedWorkers = await db.query.serviceAssignments.findMany({ where: (t, { and, eq }) => and(eq(t.request_id, request.id), eq(t.status, 'active')) });
     if (!assignedWorkers.length) throw badRequest('Assign at least one employee before starting this service');
+    for (const assignment of assignedWorkers) {
+      const workerProfile = await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray }) => and(eq(t.owner_account_id, assignment.worker_account_id), inArray(t.member_type, ['employee', 'student', 'underage'])) });
+      if (workerProfile && Date.now() - new Date(workerProfile.birthdate).getTime() < 18 * 365.2425 * 24 * 60 * 60 * 1000) {
+        const guardianConsent = await db.query.serviceGuardianConsents.findFirst({ where: (t, { and, eq, isNull }) => and(eq(t.request_id, request.id), eq(t.minor_account_id, assignment.worker_account_id), eq(t.guardian_account_id, request.requester_account_id), isNull(t.revoked_at)) });
+        if (provider.category !== 'school' || !guardianConsent) throw forbidden('A current family guardian consent is required before this school service can start with a minor assigned');
+      }
+    }
   }
   await db.update(schema.serviceRequests).set({ status: dto.status, updated_at: new Date() }).where(eq(schema.serviceRequests.id, request.id));
   return { status: dto.status };

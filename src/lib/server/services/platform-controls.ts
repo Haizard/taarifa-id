@@ -37,6 +37,7 @@ export function routeActivity(method: string, segments: string[]) {
   if (method === 'GET' && segments[0] === 'employer' && segments[1] === 'jobs' && segments[3] === 'applications') return { action: 'applicant_career_view', limit: 60, windowMs: 60_000, resourceId: segments[2] ?? null };
   if (method === 'POST' && segments[0] === 'jobs' && segments[2] === 'apply') return { action: 'job_application', limit: 10, windowMs: 24 * 60 * 60_000, resourceId: segments[1] ?? null };
   if (method === 'POST' && segments[0] === 'employer' && segments[1] === 'jobs' && segments[3] === 'invitations') return { action: 'candidate_invitation', limit: 20, windowMs: 60 * 60_000, resourceId: segments[2] ?? null };
+  if (method === 'POST' && segments[0] === 'organization' && segments[1] === 'memberships') return { action: 'organization_membership_invitation', limit: 20, windowMs: 60 * 60_000, resourceId: null };
   if (method === 'POST' && segments.includes('messages')) return { action: 'job_message', limit: 50, windowMs: 60 * 60_000, resourceId: segments[2] ?? null };
   if (method === 'POST' && segments[0] === 'marketplace' && segments[1] === 'requests' && segments.length === 2) return { action: 'service_request', limit: 10, windowMs: 60 * 60_000, resourceId: null };
   if (method === 'POST' && segments[0] === 'marketplace' && segments[1] === 'requests' && segments[3] === 'offers') return { action: 'service_offer', limit: 30, windowMs: 60 * 60_000, resourceId: segments[2] ?? null };

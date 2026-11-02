@@ -31,37 +31,38 @@ TAARIFA_ID connects people requesting services with hospitals, schools, garages,
 - Adults can opt into job discovery, apply, choose what to share, receive invitations, message employers, and accept or decline a two-sided hire offer. Current employers are excluded from passive discovery; verified employer blocks and other safety controls are supported.
 - Only approved provider organizations can use employer hiring features. Admin review supports uploaded registration evidence and reasoned approval or rejection.
 
-## Remaining roadmap
+## Implemented capabilities
 
-These items are not complete and should be planned before broad rollout. The current build does not claim to have finished every future capability.
+### Organization membership and worker identity
 
-### 1. Organization membership and worker identity
+- Existing individual accounts can be invited into an organization and accept membership without creating a duplicate login. A worker can belong to multiple organizations at once.
+- Memberships have invited, active, suspended, and ended states. Workers can leave one organization while keeping their account, other memberships, and career records. Legacy employee accounts are backfilled into memberships.
+- Organizations can view their active workforce, invite workers, manage membership status, and see a service operations summary with request volume, completion, response rate and time, feedback, and open complaints.
+- School invitations for a linked minor require guardian acceptance. School staff can assign work to minors only when the guardian has given request-specific consent. Consent can be revoked before the work starts. Minor worker ratings are disabled.
 
-- Add invitations that let an existing individual account accept an organization membership instead of creating a duplicate login.
-- Replace the single-parent organization link with a membership model that supports multiple current and past employers, scoped roles, worker acceptance, suspension, and termination without losing account ownership.
-- Add organization operational dashboards for assignment coverage, response/completion times, cancellations, and appropriately aggregated feedback.
+### Fairer service feedback and complaints
 
-### 2. Fairer service feedback
+- Service and worker reviews include communication, punctuality, care, and outcome dimensions. Reviewers can edit feedback for seven days; edit dates are visible, and edits close after a provider or worker responds or disputes the review.
+- Complaint cases support private evidence attachments, provider/worker responses, administrator-only investigation notes, outcome notifications, and one client appeal within 14 days. A complaint alone does not establish fault.
+- Case evidence is limited to the named participants and platform administrators. Administrative investigation notes are not returned to clients or providers. Notifications cover workforce invitations, verification, reviews, and service complaint events.
 
-- Add structured, non-discriminatory rating dimensions and a short edit window with visible edit timestamps.
-- Keep individual feedback and complaint details private; publish only moderated summaries that meet minimum sample thresholds.
-- Refine service-case workflow with investigation notes, notifications, evidence handling, and an explicit appeal path. Do not treat a complaint by itself as a finding of fault.
+### Provider verification lifecycle
 
-### 3. Provider verification lifecycle
+- Provider verification expires after one year. Organizations see renewal status and can submit updated registration evidence; hiring features remain gated until current approval.
+- An organization may request reconsideration once for a rejected verification decision. Administrators record a reasoned decision and both parties receive notifications.
+- Review remains manual against uploaded evidence. Official registry checks are not enabled because each jurisdiction requires an agreed authoritative source and, often, credentials or a commercial integration.
 
-- Add renewal reminders and recurring verification review. Existing requests can be resubmitted after rejection, but there is no formal reconsideration workflow or verification expiry policy yet.
-- Add official registry checks where supported and record their source and date. Current review is manual and depends on submitted documents.
+## Remaining release dependencies
 
-### 4. Minor-safe service policies
-
-- Job discovery, employee ratings, and public career links already have adult-only safeguards. Before assigning minors in school or other services, define guardian consent, age-appropriate roles, visibility, and escalation rules with local policy owners.
-- Keep minor profiles out of worker reputation and public job discovery unless a reviewed policy explicitly permits a narrowly scoped experience.
+- Configure official business, school, and health-provider registry integrations when the platform has jurisdiction-specific sources and credentials. Until then, administrators must record their human review based on submitted evidence.
+- Have local policy owners approve age-appropriate school roles, guardian-consent language, escalation practices, and retention requirements before enabling minor assignments in production.
+- Review local consent, employment, health-data, and child-safety requirements before expanding into regulated services.
 
 ## Release gates
 
 1. Test authorization and privacy boundaries for each role: client, provider admin, managed worker, independent worker, and system admin.
 2. Pilot hospitals, schools, and emergency garages with safe service forms, clear assignment records, complaint handling, and human provider verification.
-3. Complete membership linking and minor safeguards before enabling broader organization workforce use.
+3. Complete local policy review for minor assignments and registry review procedures before enabling broader organization workforce use.
 4. Review local consent, employment, health-data, and child-safety requirements before expanding into regulated services.
 
 ## Measures

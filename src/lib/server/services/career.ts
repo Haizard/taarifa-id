@@ -132,8 +132,12 @@ export async function createEmployerCareerRecord(accountId: string, dto: any) {
   const { account, provider } = await requireEmployer(accountId);
   const workerId = String(dto.worker_account_id ?? '');
   const worker = await db.query.accounts.findFirst({ where: (t, { and, eq, isNull }) => and(
-    eq(t.id, workerId), eq(t.parent_account_id, account.id), eq(t.role, 'user'), eq(t.status, 'active'), isNull(t.deleted_at),
+    eq(t.id, workerId), inArray(t.role, ['user', 'individual']), eq(t.status, 'active'), isNull(t.deleted_at),
   ) });
+  const membership = worker ? await db.query.organizationMemberships.findFirst({ where: (t, { and, eq }) => and(
+    eq(t.organization_account_id, account.id), eq(t.worker_account_id, worker.id), eq(t.status, 'active'),
+  ) }) : null;
+  if (worker && !membership) throw badRequest('Choose an active employee linked to your organization');
   const profile = worker ? await db.query.personProfiles.findFirst({ where: (t, { and, eq }) => and(
     eq(t.owner_account_id, worker.id), eq(t.member_type, 'employee'),
   ) }) : null;
@@ -289,7 +293,7 @@ export async function getSharedCareer(token: string) {
 
 export async function leaveOrganization(accountId: string) {
   const account = await requireCareerAccount(accountId);
-  if (account.role !== 'user' || !account.parent_account_id) throw badRequest('This account is not currently managed by an organization');
+  if (!['user', 'individual'].includes(account.role)) throw badRequest('This account is not currently managed by an organization');
   const [profile] = await db.select().from(schema.personProfiles).where(and(eq(schema.personProfiles.owner_account_id, account.id), eq(schema.personProfiles.member_type, 'employee'))).limit(1);
   if (!profile) throw badRequest('Only employee accounts can leave an organization through career settings');
   const activeJobs = await db.select({ id: schema.serviceAssignments.id })
@@ -302,16 +306,21 @@ export async function leaveOrganization(accountId: string) {
     ));
   if (activeJobs.length) throw badRequest('Complete or have your organization reassign your active service work before leaving');
   const parentId = account.parent_account_id;
-  const parent = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, parentId) });
+  const memberships = await db.query.organizationMemberships.findMany({ where: (t, { and, eq }) => and(eq(t.worker_account_id, account.id), eq(t.status, 'active')) });
+  if (!parentId && !memberships.length) throw badRequest('This account is not currently managed by an organization');
+  const leaving = memberships.find((membership) => membership.organization_account_id === parentId) ?? memberships[0];
+  if (leaving) await db.update(schema.organizationMemberships).set({ status: 'ended', ended_at: new Date(), updated_at: new Date() }).where(eq(schema.organizationMemberships.id, leaving.id));
+  if (memberships.some((membership) => membership.id !== leaving?.id)) return { message: 'This organization link ended. Your other organization memberships remain active.' };
+  const parent = parentId ? await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, parentId) }) : null;
   await db.transaction(async (tx) => {
     if (parent?.account_type === 'business') {
-      const entity = await tx.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId) });
+      const entity = await tx.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId!) });
       if (entity) await tx.delete(schema.businessMembers).where(and(eq(schema.businessMembers.business_id, entity.id), eq(schema.businessMembers.person_profile_id, profile.id)));
     } else if (parent?.account_type === 'school') {
-      const entity = await tx.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId) });
+      const entity = await tx.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId!) });
       if (entity) await tx.delete(schema.schoolMembers).where(and(eq(schema.schoolMembers.school_id, entity.id), eq(schema.schoolMembers.person_profile_id, profile.id)));
     } else if (parent?.account_type === 'institution') {
-      const entity = await tx.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId) });
+      const entity = await tx.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, parentId!) });
       if (entity) await tx.delete(schema.institutionMembers).where(and(eq(schema.institutionMembers.institution_id, entity.id), eq(schema.institutionMembers.person_profile_id, profile.id)));
     }
     await tx.update(schema.accounts).set({ account_type: 'individual', role: 'individual', parent_account_id: null, is_reseller: false, updated_at: new Date() }).where(eq(schema.accounts.id, account.id));

@@ -3,6 +3,7 @@ import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, forbidden, notFound } from '../errors';
 import { blockedCounterpartIds, hasActiveBlock } from './job-safety';
+import { isProviderVerificationCurrent } from './provider-verification';
 
 const orgTypes = ['business', 'school', 'institution'];
 const appStatuses = ['submitted', 'under_review', 'interview', 'offered', 'rejected', 'withdrawn', 'hire_pending', 'offer_declined', 'hired'];
@@ -28,7 +29,7 @@ async function employer(id: string) {
 
 async function verifiedEmployer(id: string) {
   const result = await employer(id);
-  if (result.provider.verification_status !== 'verified') throw forbidden('Complete organization verification before posting jobs, inviting candidates, or viewing applicant career details');
+  if (!isProviderVerificationCurrent(result.provider)) throw forbidden('Complete or renew organization verification before posting jobs, inviting candidates, or viewing applicant career details');
   return result;
 }
 
@@ -41,11 +42,13 @@ export async function getJobPreferences(accountId: string) {
 
 export async function listEligibleEmployers(accountId: string) {
   const { account } = await workerAccount(accountId);
+  const memberships = await db.query.organizationMemberships.findMany({ where: (t, { and, eq }) => and(eq(t.worker_account_id, accountId), eq(t.status, 'active')) });
+  const currentOrganizations = new Set(memberships.map((membership) => membership.organization_account_id));
   const rows = await db.select({ provider: schema.serviceProviders, employer: schema.accounts })
     .from(schema.serviceProviders).innerJoin(schema.accounts, eq(schema.serviceProviders.account_id, schema.accounts.id))
     .where(and(eq(schema.serviceProviders.verification_status, 'verified'), eq(schema.accounts.status, 'active'), isNull(schema.accounts.deleted_at)))
     .orderBy(schema.serviceProviders.display_name);
-  return rows.filter(({ employer }) => employer.id !== account.parent_account_id && employer.id !== accountId)
+  return rows.filter(({ provider, employer }) => isProviderVerificationCurrent(provider) && !currentOrganizations.has(employer.id) && employer.id !== accountId)
     .map(({ provider, employer }) => ({
       account_id: employer.id, display_name: provider.display_name, category: provider.category,
       region: provider.region, district: provider.district,
@@ -53,14 +56,15 @@ export async function listEligibleEmployers(accountId: string) {
 }
 
 export async function saveJobPreferences(accountId: string, dto: any) {
-  const { account } = await workerAccount(accountId);
+  await workerAccount(accountId);
   const current = await db.query.careerProfiles.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });
   const jobSeeking = dto.job_seeking === true;
   const categories = words(dto.job_categories);
   const locations = words(dto.job_locations, 20);
   const excluded = words(dto.excluded_employer_account_ids, 50);
   if (jobSeeking && (!categories.length || !locations.length)) throw badRequest('Choose at least one job category and location before becoming discoverable');
-  const parentExcluded = account.parent_account_id ? [account.parent_account_id] : [];
+  const memberships = await db.query.organizationMemberships.findMany({ where: (t, { and, eq }) => and(eq(t.worker_account_id, accountId), eq(t.status, 'active')) });
+  const parentExcluded = memberships.map((membership) => membership.organization_account_id);
   const values = {
     account_id: accountId,
     headline: current?.headline ?? null,
@@ -90,7 +94,7 @@ export async function listJobs(accountId: string) {
     .from(schema.jobApplications).where(eq(schema.jobApplications.worker_account_id, accountId));
   const appMap = new Map(apps.map((a) => [a.job_id, a.status]));
   const blocked = await blockedCounterpartIds(accountId);
-  return rows.filter(({ job, org }) => (!job.closes_at || job.closes_at > new Date()) && !blocked.has(org.id)).map(({ job, provider }) => ({
+  return rows.filter(({ job, org, provider }) => isProviderVerificationCurrent(provider) && (!job.closes_at || job.closes_at > new Date()) && !blocked.has(org.id)).map(({ job, provider }) => ({
     ...job, organization_name: provider.display_name, organization_category: provider.category,
     application_status: appMap.get(job.id) ?? null,
   }));
@@ -111,7 +115,7 @@ export async function applyToJob(accountId: string, jobId: string, dto: any) {
   const preferences = await getJobPreferences(accountId);
   const job = await db.query.jobPostings.findFirst({ where: (t, { eq }) => eq(t.id, jobId) });
   const provider = job ? await db.query.serviceProviders.findFirst({ where: (t, { eq }) => eq(t.id, job.provider_id) }) : null;
-  if (!job || provider?.verification_status !== 'verified' || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw notFound('This job is no longer accepting applications');
+  if (!job || !provider || !isProviderVerificationCurrent(provider) || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw notFound('This job is no longer accepting applications');
   if (await hasActiveBlock(accountId, job.organization_account_id)) throw forbidden('You cannot apply to an organization you have blocked or that has blocked you');
   if (preferences.job_seeking !== true) throw forbidden('Turn on job seeking before applying');
   const previous = await db.query.jobApplications.findFirst({ where: (t, { and, eq }) => and(eq(t.job_id, jobId), eq(t.worker_account_id, accountId)) });
@@ -151,7 +155,7 @@ export async function listEmployerJobs(accountId: string) {
     .where(eq(schema.jobPostings.organization_account_id, account.id)) : [];
   const counts = new Map<string, number>();
   for (const { application } of applications) if (application.status !== 'withdrawn') counts.set(application.job_id, (counts.get(application.job_id) ?? 0) + 1);
-  return { provider: { id: provider.id, display_name: provider.display_name, category: provider.category, verification_status: provider.verification_status }, jobs: jobs.map((job) => ({ ...job, application_count: counts.get(job.id) ?? 0 })) };
+  return { provider: { id: provider.id, display_name: provider.display_name, category: provider.category, verification_status: isProviderVerificationCurrent(provider) ? 'verified' : provider.verification_status === 'verified' ? 'renewal_due' : provider.verification_status }, jobs: jobs.map((job) => ({ ...job, application_count: counts.get(job.id) ?? 0 })) };
 }
 
 export async function createJob(accountId: string, dto: any) {
@@ -194,12 +198,14 @@ export async function searchCandidates(accountId: string, query: URLSearchParams
     const age = Date.now() - new Date(person.birthdate).getTime();
     if (age < 18 * 365.2425 * 24 * 60 * 60 * 1000) return false;
     const excluded = profile.excluded_employer_account_ids ?? [];
-    return !excluded.includes(account.id) && worker.parent_account_id !== account.id && worker.id !== account.id
+    return !excluded.includes(account.id) && worker.id !== account.id
       && (!category || (profile.job_categories ?? []).some((v) => v.toLowerCase().includes(category)))
       && (!location || (profile.job_locations ?? []).some((v) => v.toLowerCase().includes(location)));
   }).slice(0, 100);
+  const currentMemberships = await db.query.organizationMemberships.findMany({ where: (t, { and, eq, inArray }) => and(inArray(t.worker_account_id, result.map(({ account: worker }) => worker.id)), eq(t.organization_account_id, account.id), eq(t.status, 'active')) });
+  const employed = new Set(currentMemberships.map((membership) => membership.worker_account_id));
   const blocked = await blockedCounterpartIds(accountId);
-  return result.filter(({ account: worker }) => !blocked.has(worker.id)).map(({ profile, person }) => ({
+  return result.filter(({ account: worker }) => !blocked.has(worker.id) && !employed.has(worker.id)).map(({ profile, person }) => ({
     account_id: profile.account_id,
     display_name: person.common_name?.trim() || `${person.first_name} ${person.last_name}`.trim(),
     headline: profile.headline, skills: profile.skills, categories: profile.job_categories, locations: profile.job_locations,
@@ -260,7 +266,7 @@ export async function respondToHireConfirmation(accountId: string, applicationId
   const offered = applicationRows[0];
   if (!offered || offered.application.worker_account_id !== accountId) throw notFound('Job offer not found');
   if (await hasActiveBlock(accountId, offered.job.organization_account_id)) throw forbidden('This employment confirmation is unavailable because one participant blocked the other');
-  if (offered.provider.verification_status !== 'verified') throw forbidden('Only a verified employer can create a confirmed employment record');
+  if (!isProviderVerificationCurrent(offered.provider)) throw forbidden('Only a currently verified employer can create a confirmed employment record');
   return db.transaction(async (tx) => {
     const [application] = await tx.select().from(schema.jobApplications).where(eq(schema.jobApplications.id, applicationId)).limit(1);
     if (!application) throw notFound('Job offer not found');
@@ -347,7 +353,7 @@ export async function listWorkerInvitations(accountId: string) {
     .innerJoin(schema.serviceProviders, eq(schema.jobPostings.provider_id, schema.serviceProviders.id))
     .where(and(eq(schema.jobInvitations.worker_account_id, accountId), eq(schema.jobInvitations.status, 'pending')))
     .orderBy(desc(schema.jobInvitations.created_at));
-  const visible = await Promise.all(rows.filter(({ invitation, job, provider }) => invitation.expires_at > now && provider.verification_status === 'verified' && job.status === 'open' && (!job.closes_at || job.closes_at > now))
+  const visible = await Promise.all(rows.filter(({ invitation, job, provider }) => invitation.expires_at > now && isProviderVerificationCurrent(provider) && job.status === 'open' && (!job.closes_at || job.closes_at > now))
     .map(async (row) => ({ row, blocked: await hasActiveBlock(accountId, row.job.organization_account_id) })));
   return visible.filter(({ blocked }) => !blocked).map(({ row: { invitation, job, provider } }) => ({
       id: invitation.id, message: invitation.message, expires_at: invitation.expires_at,
@@ -366,10 +372,11 @@ export async function createJobInvitation(accountId: string, jobId: string, dto:
   const person = worker ? await db.query.personProfiles.findFirst({ where: (t, { and, eq, inArray, isNull }) => and(eq(t.owner_account_id, workerId), inArray(t.member_type, ['self', 'employee']), isNull(t.deleted_at)) }) : null;
   const ageMs = person ? Date.now() - new Date(person.birthdate).getTime() : 0;
   const excluded = profile?.excluded_employer_account_ids ?? [];
+  const currentMembership = worker ? await db.query.organizationMemberships.findFirst({ where: (t, { and, eq }) => and(eq(t.worker_account_id, workerId), eq(t.organization_account_id, account.id), eq(t.status, 'active')) }) : null;
   const categoryMatch = profile?.job_categories?.some((v) => v.toLowerCase().includes(job.category.toLowerCase()) || job.category.toLowerCase().includes(v.toLowerCase()));
   const locationMatch = profile?.job_locations?.some((v) => v.toLowerCase().includes(job.location.toLowerCase()) || job.location.toLowerCase().includes(v.toLowerCase()));
   if (!worker || !['individual', 'user'].includes(worker.role) || !person || ageMs < 18 * 365.2425 * 24 * 60 * 60 * 1000
-    || profile?.job_seeking !== true || worker.parent_account_id === account.id || excluded.includes(account.id) || !categoryMatch || !locationMatch) {
+    || profile?.job_seeking !== true || !!currentMembership || excluded.includes(account.id) || !categoryMatch || !locationMatch) {
     throw forbidden('This person is not currently visible for a matching role and location');
   }
   if (await hasActiveBlock(account.id, workerId)) throw forbidden('This person is unavailable');
@@ -400,7 +407,7 @@ export async function respondToJobInvitation(accountId: string, invitationId: st
   const preferences = await getJobPreferences(accountId);
   const job = await db.query.jobPostings.findFirst({ where: (t, { eq }) => eq(t.id, invitation.job_id) });
   const provider = job ? await db.query.serviceProviders.findFirst({ where: (t, { eq }) => eq(t.id, job.provider_id) }) : null;
-  if (!preferences.job_seeking || !job || provider?.verification_status !== 'verified' || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw badRequest('This job, employer verification, or your job-seeking visibility is no longer active');
+  if (!preferences.job_seeking || !job || !provider || !isProviderVerificationCurrent(provider) || job.status !== 'open' || (job.closes_at && job.closes_at <= new Date())) throw badRequest('This job, employer verification, or your job-seeking visibility is no longer active');
   const sharedHistoryIds = words(dto.shared_history_ids, 20);
   if (sharedHistoryIds.length) {
     const verified = await db.query.careerHistory.findMany({ where: (t, { and, eq, inArray }) => and(

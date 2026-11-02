@@ -12,6 +12,8 @@ import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components
 type WorkRecord = { id: string; organization_name: string; position: string; started_on: string; ended_on: string | null; verification_status: string; worker_note: string | null; moderation_note: string | null; correction_history?: { id: string; event_type: string; note: string | null; created_at: string }[] };
 type Share = { id: string; token: string; purpose: string; expires_at: string; revoked_at: string | null; history_record_ids: string[] };
 type CareerData = { profile: { headline: string | null; summary: string | null; skills: string[]; qualifications?: string[]; availability?: string | null; preferred_employment_types?: string[]; professional_references?: { name: string; role: string; organization: string; contact: string }[] }; history: WorkRecord[]; shares: Share[] };
+type OrganizationInvitation = { id: string; organization_name: string; organization_type: string; invited_at: string };
+type OrganizationMembership = { id: string; organization_name: string; organization_type: string; status: string };
 
 const statusTone = (status: string) => status === 'verified' ? 'green' : status === 'disputed' ? 'orange' : status === 'rejected' ? 'grey' : 'blue';
 
@@ -20,6 +22,8 @@ export default function CareerPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['career-me', user?.sub], queryFn: () => api.get<CareerData>('/career/me'), enabled: !!user });
+  const { data: invitations = [] } = useQuery({ queryKey: ['organization-invitations', user?.sub], queryFn: () => api.get<OrganizationInvitation[]>('/organizations/invitations'), enabled: !!user && ['user', 'individual'].includes(user.role) });
+  const { data: organizationMemberships = [] } = useQuery({ queryKey: ['my-organization-memberships', user?.sub], queryFn: () => api.get<OrganizationMembership[]>('/organizations/memberships'), enabled: !!user && ['user', 'individual'].includes(user.role) });
   const [headline, setHeadline] = useState('');
   const [summary, setSummary] = useState('');
   const [skillsText, setSkillsText] = useState('');
@@ -61,6 +65,11 @@ export default function CareerPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Correction request sent to the organization'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const respondToOrganizationInvite = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'accept' | 'decline' }) => api.post(`/organizations/invitations/${id}/respond`, { action }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['organization-invitations'] }); qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Organization invitation updated'); },
+    onError: (e: any) => toast.error(e.message),
+  });
   const makeShare = useMutation({
     mutationFn: () => api.post<{ token: string }>('/career/share', { include_profile: true, include_extended_profile: includeExtendedProfile, history_record_ids: selectedRecords, purpose, duration_days: Number(shareDays) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); setSelectedRecords([]); toast.success('Temporary career link created'); },
@@ -74,6 +83,11 @@ export default function CareerPage() {
   const leave = useMutation({
     mutationFn: () => api.post('/career/leave-organization', {}),
     onSuccess: () => { clear(); router.replace('/login'); toast.success('Your account is now independent. Sign in again to continue.'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const leaveMembership = useMutation({
+    mutationFn: (id: string) => api.post(`/organizations/memberships/${id}/leave`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-organization-memberships'] }); qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Organization link ended; your account and work history remain yours'); },
     onError: (e: any) => toast.error(e.message),
   });
   const downloadCareerData = () => {
@@ -91,6 +105,8 @@ export default function CareerPage() {
     <LargeTitleHeader title="Career profile" subtitle="Keep your professional profile and verified work history with you. Nothing is visible to employers until you share a temporary link." />
     <div className="mb-6 flex items-start gap-2 rounded-xl bg-accent-primary/5 p-3 text-[13px] text-ink-secondary"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent-primary" />Your career details are private by default. Shared links include only this profile and the verified work records you select, and expire automatically.</div>
     <div className="mb-6"><GlassButton type="button" disabled={!data || isLoading} onClick={downloadCareerData}><span className="flex items-center gap-2"><Download size={16} />Download career data</span></GlassButton><p className="mt-1 text-[11px] text-ink-tertiary">Downloads your profile and employment history as JSON. Active share links and tokens are not included.</p></div>
+
+    {!!invitations.length && <section className="mb-6 rounded-2xl border border-accent-primary/20 bg-accent-primary/5 p-5"><div className="font-semibold text-ink-primary">Organization invitations</div><p className="mt-1 text-[12px] text-ink-secondary">Accepting links this account to another organization without creating a duplicate account.</p><div className="mt-3 space-y-2">{invitations.map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3"><div className="text-[13px] font-medium text-ink-primary">{invitation.organization_name}<span className="ml-2 capitalize text-ink-tertiary">{invitation.organization_type}</span></div><div className="flex gap-2"><button onClick={() => respondToOrganizationInvite.mutate({ id: invitation.id, action: 'accept' })} disabled={respondToOrganizationInvite.isPending} className="rounded-full bg-accent-success/15 px-3 py-2 text-[12px] font-semibold text-accent-success">Accept</button><button onClick={() => respondToOrganizationInvite.mutate({ id: invitation.id, action: 'decline' })} disabled={respondToOrganizationInvite.isPending} className="rounded-full bg-white px-3 py-2 text-[12px] font-semibold text-ink-secondary">Decline</button></div></div>)}</div></section>}
 
     <SectionLabel tone="lavender">Your profile</SectionLabel>
     <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="glass space-y-3 p-5">
@@ -125,7 +141,7 @@ export default function CareerPage() {
       {(data?.shares ?? []).filter((share) => !share.revoked_at && new Date(share.expires_at) > new Date()).map((share) => <div key={share.id} className="rounded-xl border border-glass-border bg-white/50 p-3"><div className="font-medium text-ink-primary">{share.purpose}</div><a className="mt-1 block break-all text-[12px] text-accent-primary" href={`/career/share/${share.token}`} target="_blank" rel="noreferrer">{typeof window !== 'undefined' ? `${window.location.origin}/career/share/${share.token}` : `/career/share/${share.token}`}</a><div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-ink-tertiary"><span>Expires {new Date(share.expires_at).toLocaleString()}</span><button onClick={() => revokeShare.mutate(share.id)} disabled={revokeShare.isPending} className="font-semibold text-accent-danger">Revoke</button></div></div>)}
     </div>
 
-    {user?.role === 'user' && <section className="mt-8 rounded-2xl border border-accent-warning/30 bg-accent-warning/5 p-5"><div className="flex items-start gap-3"><Unlink size={18} className="mt-1 shrink-0 text-accent-warning" /><div><div className="font-semibold text-ink-primary">Leave your organization</div><p className="mt-1 text-[13px] text-ink-secondary">Your account becomes an independent individual account. The organization loses member-management access; your career profile and verified work history stay with you. Finish or have active service assignments reassigned first.</p><button onClick={() => leave.mutate()} disabled={leave.isPending} className="mt-3 rounded-full bg-accent-warning/15 px-4 py-2 text-[13px] font-semibold text-accent-warning disabled:opacity-50">{leave.isPending ? 'Updating account…' : 'Make my account independent'}</button></div></div></section>}
+    {!!organizationMemberships.length && <section className="mt-8 rounded-2xl border border-accent-warning/30 bg-accent-warning/5 p-5"><div className="flex items-start gap-3"><Unlink size={18} className="mt-1 shrink-0 text-accent-warning" /><div className="w-full"><div className="font-semibold text-ink-primary">Organization links</div><p className="mt-1 text-[13px] text-ink-secondary">You control each link independently. Active service assignments must be completed or reassigned before leaving an organization.</p><div className="mt-3 space-y-2">{organizationMemberships.map((membership) => <div key={membership.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/65 p-3"><span className="text-[13px] font-medium text-ink-primary">{membership.organization_name}<span className="ml-2 capitalize text-ink-tertiary">{membership.organization_type} · {membership.status}</span></span>{membership.status === 'active' && <button onClick={() => leaveMembership.mutate(membership.id)} disabled={leaveMembership.isPending} className="rounded-full bg-accent-warning/15 px-3 py-2 text-[12px] font-semibold text-accent-warning">Leave organization</button>}</div>)}</div></div></div></section>}
     {isLoading && <div className="sr-only"><BriefcaseBusiness /></div>}
   </div>;
 }

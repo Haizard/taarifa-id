@@ -16,6 +16,9 @@ import * as careerService from './services/career';
 import * as jobsService from './services/jobs';
 import * as jobSafetyService from './services/job-safety';
 import * as providerVerificationService from './services/provider-verification';
+import * as organizationMembershipsService from './services/organization-memberships';
+import * as guardianConsentService from './services/guardian-consent';
+import * as notificationsService from './services/notifications';
 import { createHash } from 'node:crypto';
 import { enforceRateLimit, recordActivity, routeActivity } from './services/platform-controls';
 
@@ -51,6 +54,8 @@ const routes: Route[] = [
   { method: 'POST', segments: ['auth', 'reset-password'], public: true, handler: (c) => authService.resetPassword(c.body) },
   { method: 'POST', segments: ['auth', 'change-password'], handler: (c) => authService.changePassword(c.user!.sub, c.body) },
   { method: 'GET', segments: ['auth', 'me'], handler: (c) => c.user },
+  { method: 'GET', segments: ['notifications'], handler: (c) => notificationsService.listMyNotifications(c.user!.sub) },
+  { method: 'PATCH', segments: ['notifications', { param: 'id' }], handler: (c) => notificationsService.markNotificationRead(c.user!.sub, c.params.id) },
 
   // accounts
   { method: 'GET', segments: ['accounts', 'me'], handler: (c) => accountsService.getMe(c.user!.sub) },
@@ -119,6 +124,16 @@ const routes: Route[] = [
   { method: 'POST', segments: ['career', 'share'], handler: (c) => careerService.createCareerShare(c.user!.sub, c.body) },
   { method: 'DELETE', segments: ['career', 'share', { param: 'id' }], handler: (c) => careerService.revokeCareerShare(c.user!.sub, c.params.id) },
   { method: 'POST', segments: ['career', 'leave-organization'], handler: (c) => careerService.leaveOrganization(c.user!.sub) },
+  { method: 'GET', segments: ['organizations', 'invitations'], handler: (c) => organizationMembershipsService.listMyOrganizationInvitations(c.user!.sub) },
+  { method: 'POST', segments: ['organizations', 'invitations', { param: 'id' }, 'respond'], handler: (c) => organizationMembershipsService.respondToOrganizationInvitation(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['organizations', 'memberships'], handler: (c) => organizationMembershipsService.listMyOrganizationMemberships(c.user!.sub) },
+  { method: 'POST', segments: ['organizations', 'memberships', { param: 'id' }, 'leave'], handler: (c) => organizationMembershipsService.leaveOrganizationMembership(c.user!.sub, c.params.id) },
+  { method: 'GET', segments: ['guardian', 'organization-invitations'], handler: (c) => organizationMembershipsService.listGuardianOrganizationInvitations(c.user!.sub) },
+  { method: 'POST', segments: ['guardian', 'organization-invitations', { param: 'id' }, 'respond'], handler: (c) => organizationMembershipsService.respondToGuardianOrganizationInvitation(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['organization', 'memberships'], roles: ['admin'], handler: (c) => organizationMembershipsService.listOrganizationMemberships(c.user!.sub) },
+  { method: 'POST', segments: ['organization', 'memberships'], roles: ['admin'], handler: (c) => organizationMembershipsService.inviteOrganizationWorker(c.user!.sub, c.body) },
+  { method: 'DELETE', segments: ['organization', 'memberships', { param: 'id' }], roles: ['admin'], handler: (c) => organizationMembershipsService.endOrganizationMembership(c.user!.sub, c.params.id) },
+  { method: 'PATCH', segments: ['organization', 'memberships', { param: 'id' }], roles: ['admin'], handler: (c) => organizationMembershipsService.setOrganizationMembershipStatus(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['career', 'employer', 'records'], handler: (c) => careerService.listEmployerCareerRecords(c.user!.sub) },
   { method: 'POST', segments: ['career', 'employer', 'records'], handler: (c) => careerService.createEmployerCareerRecord(c.user!.sub, c.body) },
   { method: 'POST', segments: ['career', 'employer', 'records', { param: 'id' }, 'resolve'], handler: (c) => careerService.resolveEmployerCareerRecord(c.user!.sub, c.params.id, c.body) },
@@ -156,10 +171,14 @@ const routes: Route[] = [
   { method: 'GET', segments: ['marketplace', 'services'], public: true, handler: (c) => marketplaceService.listServices(c.query.get('category') ?? undefined, c.query.get('q') ?? undefined) },
   { method: 'GET', segments: ['marketplace', 'services', { param: 'id' }], public: true, handler: (c) => marketplaceService.getService(c.params.id) },
   { method: 'GET', segments: ['marketplace', 'provider'], handler: (c) => marketplaceService.getMyProvider(c.user!.sub) },
+  { method: 'GET', segments: ['marketplace', 'provider', 'metrics'], handler: (c) => marketplaceService.getProviderOperationalMetrics(c.user!.sub) },
   { method: 'POST', segments: ['marketplace', 'provider'], handler: (c) => marketplaceService.saveProvider(c.user!.sub, c.body) },
   { method: 'GET', segments: ['marketplace', 'provider', 'verification'], handler: (c) => providerVerificationService.getOwnVerification(c.user!.sub) },
   { method: 'POST', segments: ['marketplace', 'provider', 'verification'], handler: (c) => providerVerificationService.submitVerification(c.user!.sub, c.body) },
+  { method: 'POST', segments: ['marketplace', 'provider', 'verification', 'appeal'], handler: (c) => providerVerificationService.submitVerificationAppeal(c.user!.sub, c.body) },
   { method: 'GET', segments: ['admin', 'providers', 'verification-requests'], roles: ['system_admin'], handler: () => providerVerificationService.listPendingVerificationRequests() },
+  { method: 'GET', segments: ['admin', 'providers', 'verification-appeals'], roles: ['system_admin'], handler: () => providerVerificationService.listPendingVerificationAppeals() },
+  { method: 'PATCH', segments: ['admin', 'providers', 'verification-appeals', { param: 'id' }], roles: ['system_admin'], handler: (c) => providerVerificationService.reviewVerificationAppeal(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['admin', 'providers', 'verification-requests', { param: 'id' }, 'evidence'], roles: ['system_admin'], privateNoStore: true, handler: (c) => providerVerificationService.getVerificationEvidence(c.user!.sub, c.params.id) },
   { method: 'PATCH', segments: ['admin', 'providers', 'verification-requests', { param: 'id' }], roles: ['system_admin'], handler: (c) => providerVerificationService.reviewVerificationRequest(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'services'], handler: (c) => marketplaceService.createService(c.user!.sub, c.body) },
@@ -175,8 +194,16 @@ const routes: Route[] = [
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'offers'], handler: (c) => marketplaceService.submitOffer(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'offers', { param: 'id' }, 'accept'], handler: (c) => marketplaceService.acceptOffer(c.user!.sub, c.params.id) },
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'review'], handler: (c) => marketplaceService.createReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'PATCH', segments: ['marketplace', 'reviews', { param: 'id' }], handler: (c) => marketplaceService.editServiceReview(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'worker-reviews'], handler: (c) => marketplaceService.createWorkerReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'PATCH', segments: ['marketplace', 'worker-reviews', { param: 'id' }], handler: (c) => marketplaceService.editWorkerReview(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'complaints'], handler: (c) => marketplaceService.createServiceComplaint(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'complaints', { param: 'id' }, 'appeal'], handler: (c) => marketplaceService.submitServiceComplaintAppeal(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'complaints', { param: 'id' }, 'evidence'], handler: (c) => marketplaceService.addServiceComplaintEvidence(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['marketplace', 'complaints', { param: 'id' }, 'evidence', { param: 'evidenceId' }], privateNoStore: true, handler: (c) => marketplaceService.getServiceComplaintEvidence(c.user!.sub, c.params.id, c.params.evidenceId) },
+  { method: 'GET', segments: ['guardian', 'minors'], handler: (c) => guardianConsentService.listGuardianMinors(c.user!.sub) },
+  { method: 'GET', segments: ['guardian', 'consents'], handler: (c) => guardianConsentService.listMyGuardianConsents(c.user!.sub) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'guardian-consent'], handler: (c) => guardianConsentService.recordGuardianConsent(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['marketplace', 'complaints'], handler: (c) => marketplaceService.listMyServiceComplaints(c.user!.sub) },
   { method: 'POST', segments: ['marketplace', 'complaints', { param: 'id' }, 'response'], handler: (c) => marketplaceService.respondToServiceComplaint(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['admin', 'marketplace', 'complaints'], roles: ['system_admin'], handler: (c) => marketplaceService.listOpenServiceComplaints(c.user!.sub) },

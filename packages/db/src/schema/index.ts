@@ -29,6 +29,7 @@ export const serviceAssignmentStatusEnum = pgEnum('service_assignment_status', [
 export const serviceAssignmentEventTypeEnum = pgEnum('service_assignment_event_type', ['assigned', 'released']);
 export const serviceWorkerReviewStatusEnum = pgEnum('service_worker_review_status', ['active', 'disputed', 'upheld', 'removed']);
 export const careerVerificationStatusEnum = pgEnum('career_verification_status', ['pending', 'verified', 'disputed', 'rejected']);
+export const organizationMembershipStatusEnum = pgEnum('organization_membership_status', ['invited', 'active', 'suspended', 'ended']);
 export const providerVerificationStatusEnum = pgEnum('provider_verification_status', ['unverified', 'pending', 'verified', 'rejected']);
 export const complaintStatusEnum = pgEnum('complaint_status', ['open', 'in_review', 'resolved', 'dismissed']);
 
@@ -466,7 +467,10 @@ export const serviceReviews = pgTable('service_reviews', {
   provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
   reviewer_account_id: uuid('reviewer_account_id').notNull().references(() => accounts.id),
   rating: integer('rating').notNull(),
+  rating_dimensions: jsonb('rating_dimensions').$type<Record<string, number>>().notNull().default({}),
   review: text('review'),
+  edit_deadline: timestamp('edit_deadline', { withTimezone: true }),
+  edited_at: timestamp('edited_at', { withTimezone: true }),
   provider_response: text('provider_response'),
   provider_disputed_at: timestamp('provider_disputed_at', { withTimezone: true }),
   moderation_status: serviceWorkerReviewStatusEnum('moderation_status').notNull().default('active'),
@@ -513,7 +517,10 @@ export const serviceWorkerReviews = pgTable('service_worker_reviews', {
   worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
   reviewer_account_id: uuid('reviewer_account_id').notNull().references(() => accounts.id),
   rating: integer('rating').notNull(),
+  rating_dimensions: jsonb('rating_dimensions').$type<Record<string, number>>().notNull().default({}),
   review: text('review'),
+  edit_deadline: timestamp('edit_deadline', { withTimezone: true }),
+  edited_at: timestamp('edited_at', { withTimezone: true }),
   worker_response: text('worker_response'),
   worker_disputed_at: timestamp('worker_disputed_at', { withTimezone: true }),
   moderation_status: serviceWorkerReviewStatusEnum('moderation_status').notNull().default('active'),
@@ -541,6 +548,9 @@ export const serviceComplaintCases = pgTable('service_complaint_cases', {
   status: complaintStatusEnum('status').notNull().default('open'),
   subject_response: text('subject_response'),
   resolution_note: text('resolution_note'),
+  investigation_note: text('investigation_note'),
+  appeal_note: text('appeal_note'),
+  appealed_at: timestamp('appealed_at', { withTimezone: true }),
   resolved_by_account_id: uuid('resolved_by_account_id').references(() => accounts.id),
   resolved_at: timestamp('resolved_at', { withTimezone: true }),
   ...timestamps,
@@ -561,6 +571,17 @@ export const serviceComplaintCaseEvents = pgTable('service_complaint_case_events
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [index('service_complaint_case_events_case_idx').on(t.complaint_case_id, t.created_at)]);
 
+export const serviceComplaintEvidence = pgTable('service_complaint_evidence', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  complaint_case_id: uuid('complaint_case_id').notNull().references(() => serviceComplaintCases.id),
+  uploader_account_id: uuid('uploader_account_id').notNull().references(() => accounts.id),
+  file_name: varchar('file_name', { length: 255 }).notNull(),
+  mime_type: varchar('mime_type', { length: 40 }).notNull(),
+  size_bytes: integer('size_bytes').notNull(),
+  document: customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea', fromDriver: (value) => Buffer.from(value) })('document').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('service_complaint_evidence_case_idx').on(t.complaint_case_id, t.created_at)]);
+
 export const apiRateLimitBuckets = pgTable('api_rate_limit_buckets', {
   subject_key: varchar('subject_key', { length: 255 }).notNull(),
   action: varchar('action', { length: 80 }).notNull(),
@@ -576,6 +597,18 @@ export const platformActivityEvents = pgTable('platform_activity_events', {
   outcome: varchar('outcome', { length: 20 }).notNull().default('attempted'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [index('platform_activity_events_actor_idx').on(t.actor_account_id, t.created_at), index('platform_activity_events_action_idx').on(t.action, t.created_at)]);
+
+export const userNotifications = pgTable('user_notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  recipient_account_id: uuid('recipient_account_id').notNull().references(() => accounts.id),
+  dedupe_key: varchar('dedupe_key', { length: 180 }).notNull().unique(),
+  category: varchar('category', { length: 40 }).notNull(),
+  title: varchar('title', { length: 180 }).notNull(),
+  body: text('body').notNull(),
+  resource_path: varchar('resource_path', { length: 300 }),
+  read_at: timestamp('read_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('user_notifications_recipient_idx').on(t.recipient_account_id, t.created_at)]);
 
 export const careerProfiles = pgTable('career_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -776,12 +809,54 @@ export const lovAcuteConditions = pgTable('lov_acute_conditions', {
   ...timestamps,
 });
 
+export const organizationMemberships = pgTable('organization_memberships', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organization_account_id: uuid('organization_account_id').notNull().references(() => accounts.id),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  invited_by_account_id: uuid('invited_by_account_id').notNull().references(() => accounts.id),
+  status: organizationMembershipStatusEnum('status').notNull().default('invited'),
+  role: varchar('role', { length: 40 }).notNull().default('employee'),
+  responded_at: timestamp('responded_at', { withTimezone: true }),
+  ended_at: timestamp('ended_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  uniqueIndex('organization_memberships_org_worker_unique').on(t.organization_account_id, t.worker_account_id),
+  index('organization_memberships_worker_idx').on(t.worker_account_id, t.status),
+  index('organization_memberships_organization_idx').on(t.organization_account_id, t.status),
+]);
+
+export const serviceGuardianConsents = pgTable('service_guardian_consents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => serviceRequests.id),
+  minor_account_id: uuid('minor_account_id').notNull().references(() => accounts.id),
+  guardian_account_id: uuid('guardian_account_id').notNull().references(() => accounts.id),
+  consent_scope: varchar('consent_scope', { length: 40 }).notNull().default('service_assignment'),
+  consented_at: timestamp('consented_at', { withTimezone: true }).defaultNow().notNull(),
+  revoked_at: timestamp('revoked_at', { withTimezone: true }),
+}, (t) => [
+  uniqueIndex('service_guardian_consents_request_minor_unique').on(t.request_id, t.minor_account_id),
+  index('service_guardian_consents_guardian_idx').on(t.guardian_account_id),
+]);
+
 export const lovEmploymentTypes = pgTable('lov_employment_types', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: varchar('code', { length: 50 }).notNull().unique(),
   label: varchar('label', { length: 200 }).notNull(),
   ...timestamps,
 });
+
+export const providerVerificationAppeals = pgTable('provider_verification_appeals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => providerVerificationRequests.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  submitted_by_account_id: uuid('submitted_by_account_id').notNull().references(() => accounts.id),
+  appeal_note: text('appeal_note').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  decision_note: text('decision_note'),
+  reviewed_by_account_id: uuid('reviewed_by_account_id').references(() => accounts.id),
+  reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [uniqueIndex('provider_verification_appeals_request_unique').on(t.request_id), index('provider_verification_appeals_status_idx').on(t.status)]);
 
 export const lovPositions = pgTable('lov_positions', {
   id: uuid('id').primaryKey().defaultRandom(),

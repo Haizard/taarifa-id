@@ -11,7 +11,8 @@ import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components
 
 type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
 type Provider = { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; verification_status: string; description: string | null; contact_number: string | null; region: string | null; district: string | null; ward: string | null; accepting_requests: boolean; services: any[]; members: Array<{ id: string; display_name: string; member_type: string; ratings_available: boolean; rating: number | null; review_count: number }> };
-type Verification = { status: string; verified_at: string | null; request: { legal_name: string; registration_reference: string; evidence_notes: string | null; evidence_file_name: string | null; evidence_size_bytes: number | null; status: string; review_note: string | null } | null };
+type Verification = { status: string; verified_at: string | null; expires_at?: string | null; renewal_due?: boolean; request: { id: string; legal_name: string; registration_reference: string; evidence_notes: string | null; evidence_file_name: string | null; evidence_size_bytes: number | null; status: string; review_note: string | null } | null; appeal?: { status: string; decision_note?: string | null } | null };
+type ProviderMetrics = { total_requests: number; active_requests: number; completed_requests: number; cancelled_requests: number; response_rate: number | null; average_first_response_minutes: number | null; average_rating: number | null; review_count: number; open_complaints: number };
 
 const seedFields: Record<string, Field[]> = {
   hospital: [
@@ -36,6 +37,7 @@ export default function ProviderPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['marketplace-provider', user?.sub], queryFn: () => api.get<Provider | null>('/marketplace/provider'), enabled: !!user && user.role === 'admin' });
   const verificationQuery = useQuery({ queryKey: ['provider-verification'], queryFn: () => api.get<Verification>('/marketplace/provider/verification'), enabled: !!data });
+  const metricsQuery = useQuery({ queryKey: ['provider-metrics'], queryFn: () => api.get<ProviderMetrics>('/marketplace/provider/metrics'), enabled: !!data });
   const [profile, setProfile] = useState({ category: 'hospital', display_name: '', description: '', contact_number: '', region: '', district: '', ward: '' });
   const [service, setService] = useState({ title: '', description: '', delivery_mode: 'on_demand', price_type: 'quote_required', price_amount: '', estimated_minutes: '' });
   const [fields, setFields] = useState<Field[]>(seedFields.hospital);
@@ -43,6 +45,7 @@ export default function ProviderPage() {
   const [registrationReference, setRegistrationReference] = useState('');
   const [evidenceNotes, setEvidenceNotes] = useState('');
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [appealNote, setAppealNote] = useState('');
 
   useEffect(() => {
     if (data) setProfile({ category: data.category, display_name: data.display_name, description: data.description ?? '', contact_number: data.contact_number ?? '', region: data.region ?? '', district: data.district ?? '', ward: data.ward ?? '' });
@@ -80,6 +83,11 @@ export default function ProviderPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Verification request submitted'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const appealVerification = useMutation({
+    mutationFn: () => api.post('/marketplace/provider/verification/appeal', { request_id: verificationQuery.data?.request?.id, appeal_note: appealNote }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification'] }); setAppealNote(''); toast.success('Reconsideration request submitted'); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   if (user?.role !== 'admin' || !['business', 'school', 'institution'].includes(user.account_type)) {
     return <div className="glass p-6 text-center text-ink-secondary">Provider tools are available to business and school accounts.</div>;
@@ -106,18 +114,40 @@ export default function ProviderPage() {
       </form>
 
       {!!data && <>
+        {metricsQuery.data && <>
+          <SectionLabel tone="blue">Service operations</SectionLabel>
+          <section className="glass mb-5 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+            {[
+              ['Requests', metricsQuery.data.total_requests], ['Active', metricsQuery.data.active_requests],
+              ['Completed', metricsQuery.data.completed_requests], ['Response rate', metricsQuery.data.response_rate == null ? '—' : `${metricsQuery.data.response_rate}%`],
+              ['Avg. first response', metricsQuery.data.average_first_response_minutes == null ? '—' : `${metricsQuery.data.average_first_response_minutes} min`],
+              ['Client rating', metricsQuery.data.average_rating == null ? '—' : `★ ${metricsQuery.data.average_rating}`],
+              ['Reviews', metricsQuery.data.review_count], ['Open complaints', metricsQuery.data.open_complaints],
+            ].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-white/55 p-3"><div className="text-[11px] text-ink-tertiary">{label}</div><div className="mt-1 text-lg font-semibold text-ink-primary">{value}</div></div>)}
+          </section>
+        </>}
         <SectionLabel tone="green">Organization verification</SectionLabel>
         <section className="glass mb-5 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold text-ink-primary">Provider verification status</div><p className="mt-1 text-[12px] text-ink-secondary">Verified organizations can publish jobs, invite opted-in workers, and review applicant career details.</p></div><Badge tone={verificationQuery.data?.status === 'verified' ? 'green' : verificationQuery.data?.status === 'pending' ? 'yellow' : verificationQuery.data?.status === 'rejected' ? 'red' : 'grey'}>{verificationQuery.data?.status ?? 'unverified'}</Badge></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold text-ink-primary">Provider verification status</div><p className="mt-1 text-[12px] text-ink-secondary">Verified organizations can publish jobs, invite opted-in workers, and review applicant career details.</p></div><Badge tone={verificationQuery.data?.status === 'verified' ? 'green' : verificationQuery.data?.status === 'pending' || verificationQuery.data?.status === 'renewal_due' ? 'yellow' : verificationQuery.data?.status === 'rejected' ? 'red' : 'grey'}>{verificationQuery.data?.status ?? 'unverified'}</Badge></div>
           {verificationQuery.data?.verified_at && <p className="mt-2 text-[11px] text-ink-tertiary">Verified {new Date(verificationQuery.data.verified_at).toLocaleDateString()}</p>}
+          {verificationQuery.data?.expires_at && <p className="mt-1 text-[11px] text-ink-tertiary">Verification valid until {new Date(verificationQuery.data.expires_at).toLocaleDateString()}. Renewal is required annually.</p>}
           {verificationQuery.data?.request?.review_note && <p className="mt-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary">Review note: {verificationQuery.data.request.review_note}</p>}
           {verificationQuery.data?.request?.evidence_file_name && verificationQuery.data.status === 'pending' && <p className="mt-3 text-[12px] text-ink-secondary">Evidence submitted: {verificationQuery.data.request.evidence_file_name} ({Math.ceil((verificationQuery.data.request.evidence_size_bytes ?? 0) / 1024)} KB)</p>}
-          {verificationQuery.data?.status !== 'verified' && verificationQuery.data?.status !== 'pending' && <form onSubmit={(e) => { e.preventDefault(); requestVerification.mutate(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+          {verificationQuery.data?.request?.status === 'rejected' && !verificationQuery.data.appeal && <form onSubmit={(e) => { e.preventDefault(); appealVerification.mutate(); }} className="mt-4 space-y-2 rounded-xl bg-accent-warning/5 p-3"><label className="block text-[12px] font-medium text-ink-secondary">Request reconsideration (one appeal per decision)<textarea required minLength={20} maxLength={3000} value={appealNote} onChange={(e) => setAppealNote(e.target.value)} placeholder="Explain the new context or why the decision should be reviewed." className="mt-1 min-h-20 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /></label><GlassButton type="submit" disabled={appealVerification.isPending || appealNote.trim().length < 20}>{appealVerification.isPending ? 'Submitting…' : 'Request reconsideration'}</GlassButton></form>}
+          {verificationQuery.data?.appeal && <p className="mt-3 rounded-lg bg-accent-primary/5 p-3 text-[12px] text-ink-secondary">Reconsideration status: {verificationQuery.data.appeal.status}{verificationQuery.data.appeal.decision_note ? ` · ${verificationQuery.data.appeal.decision_note}` : ''}</p>}
+          {(verificationQuery.data?.status !== 'verified' || verificationQuery.data.renewal_due) && verificationQuery.data?.status !== 'pending' && verificationQuery.data?.status !== 'renewal_due' && <form onSubmit={(e) => { e.preventDefault(); requestVerification.mutate(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="text-[12px] font-medium text-ink-secondary">Registered organization name<input required minLength={3} maxLength={200} value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={data.display_name} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
             <label className="text-[12px] font-medium text-ink-secondary">Registration or licence reference<input required minLength={3} maxLength={120} value={registrationReference} onChange={(e) => setRegistrationReference(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
             <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Registration document (PDF, JPEG, or PNG; up to 2 MB)<input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => { const file = e.target.files?.[0] ?? null; if (file && file.size > 2 * 1024 * 1024) { toast.error('Document must not exceed 2 MB'); e.target.value = ''; setEvidenceFile(null); return; } if (file && !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { toast.error('Choose a PDF, JPEG, or PNG document'); e.target.value = ''; setEvidenceFile(null); return; } setEvidenceFile(file); }} className="mt-1 block w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary file:mr-3 file:rounded-full file:border-0 file:bg-accent-primary/10 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-accent-primary" /></label>
             <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Evidence notes<textarea maxLength={3000} value={evidenceNotes} onChange={(e) => setEvidenceNotes(e.target.value)} placeholder="Add context to help reviewers check this document." className="mt-1 min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /></label>
             <div className="sm:col-span-2"><GlassButton type="submit" disabled={requestVerification.isPending || !evidenceFile}>{requestVerification.isPending ? 'Uploading…' : 'Request provider verification'}</GlassButton></div>
+          </form>}
+          {verificationQuery.data?.renewal_due && verificationQuery.data.status !== 'pending' && <form onSubmit={(e) => { e.preventDefault(); requestVerification.mutate(); }} className="mt-4 grid gap-3 sm:grid-cols-2 rounded-xl border border-accent-warning/20 bg-accent-warning/5 p-4">
+            <div className="sm:col-span-2 text-[13px] font-semibold text-ink-primary">Annual verification renewal</div>
+            <label className="text-[12px] font-medium text-ink-secondary">Registered organization name<input required minLength={3} maxLength={200} value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={data.display_name} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
+            <label className="text-[12px] font-medium text-ink-secondary">Registration or licence reference<input required minLength={3} maxLength={120} value={registrationReference} onChange={(e) => setRegistrationReference(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
+            <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Updated registration document<input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setEvidenceFile(e.target.files?.[0] ?? null)} className="mt-1 block w-full text-[12px] text-ink-primary" /></label>
+            <div className="sm:col-span-2"><GlassButton type="submit" disabled={requestVerification.isPending || !evidenceFile}>{requestVerification.isPending ? 'Uploading…' : 'Submit renewal'}</GlassButton></div>
           </form>}
           {verificationQuery.data?.status === 'pending' && <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary"><BadgeCheck size={16} />Your registration details are awaiting platform review. Job posting and candidate search stay locked until approval.</div>}
         </section>

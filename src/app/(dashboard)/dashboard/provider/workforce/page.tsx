@@ -20,7 +20,9 @@ export default function ProviderWorkforcePage() {
   const qc = useQueryClient();
   const { data: provider } = useQuery({ queryKey: ['marketplace-provider', user?.sub], queryFn: () => api.get<Provider | null>('/marketplace/provider'), enabled: !!user && user.role === 'admin' });
   const { data: records, isLoading } = useQuery({ queryKey: ['career-employer-records', user?.sub], queryFn: () => api.get<CareerRecord[]>('/career/employer/records'), enabled: !!user && user.role === 'admin' });
+  const { data: memberships = [] } = useQuery({ queryKey: ['organization-memberships'], queryFn: () => api.get<Array<{ id: string; username: string; display_name: string; status: string }>>('/organization/memberships'), enabled: !!user && user.role === 'admin' });
   const [workerId, setWorkerId] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
   const [position, setPosition] = useState('');
   const [startedOn, setStartedOn] = useState('');
   const [endedOn, setEndedOn] = useState('');
@@ -37,12 +39,35 @@ export default function ProviderWorkforcePage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-employer-records'] }); toast.success('Employment record updated'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const invite = useMutation({
+    mutationFn: () => api.post('/organization/memberships', { username: inviteUsername }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['organization-memberships'] }); setInviteUsername(''); toast.success('Invitation sent to the worker’s existing account'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const endMembership = useMutation({
+    mutationFn: (id: string) => api.delete(`/organization/memberships/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['organization-memberships'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Organization membership ended'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const setMembershipStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'active' | 'suspended' }) => api.patch(`/organization/memberships/${id}`, { status }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['organization-memberships'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Membership status updated'); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   if (user?.role !== 'admin' || !['business', 'school', 'institution'].includes(user.account_type)) return <div className="glass p-6 text-center text-ink-secondary">Work history tools are available to organization admins.</div>;
 
   return <div className="mx-auto max-w-4xl">
     <LargeTitleHeader title="Work history" subtitle="Submit employment records for your employees to review and verify." right={<Link href="/dashboard/sub-accounts" className="glass rounded-full px-3 py-2 text-[13px] font-semibold text-accent-primary">Manage members</Link>} />
     <div className="mb-5 flex items-start gap-2 rounded-xl bg-accent-primary/5 p-3 text-[13px] text-ink-secondary"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent-primary" />Employees must confirm a record before it is marked verified. Confirmed records remain with the employee after they leave.</div>
+
+    <SectionLabel tone="blue">Invite a worker with an existing account</SectionLabel>
+    <form onSubmit={(e) => { e.preventDefault(); invite.mutate(); }} className="glass flex flex-wrap items-end gap-3 p-5">
+      <label className="min-w-[220px] flex-1 text-[13px] font-medium text-ink-secondary">Worker username<input required value={inviteUsername} onChange={(e) => setInviteUsername(e.target.value)} placeholder="Enter their existing username" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label>
+      <GlassButton type="submit" disabled={invite.isPending || !inviteUsername.trim()}>{invite.isPending ? 'Sending…' : 'Send invitation'}</GlassButton>
+      <p className="basis-full text-[12px] text-ink-tertiary">The worker must sign in and accept before they join your roster. Adults only. A worker can have multiple active organizations.</p>
+      {memberships.map((member) => <div key={member.id} className="flex w-full items-center justify-between gap-3 rounded-xl bg-white/55 p-3 text-[13px]"><span className="text-ink-primary">{member.display_name} <span className="text-ink-tertiary">@{member.username} · {member.status}</span></span>{member.status === 'active' && <div className="flex gap-3"><button type="button" onClick={() => setMembershipStatus.mutate({ id: member.id, status: 'suspended' })} disabled={setMembershipStatus.isPending} className="text-[12px] font-semibold text-accent-warning">Suspend</button><button type="button" onClick={() => endMembership.mutate(member.id)} disabled={endMembership.isPending} className="text-[12px] font-semibold text-accent-danger">End</button></div>}{member.status === 'suspended' && <button type="button" onClick={() => setMembershipStatus.mutate({ id: member.id, status: 'active' })} disabled={setMembershipStatus.isPending} className="text-[12px] font-semibold text-accent-success">Reinstate</button>}</div>)}
+    </form>
 
     <SectionLabel tone="lavender">Add employment record</SectionLabel>
     <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="glass grid grid-cols-1 gap-3 p-5 sm:grid-cols-2">

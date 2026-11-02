@@ -33,7 +33,7 @@ const NAV: { href: string; label: string; icon: any; tone: AccentTone; show: (r:
   { href: '/dashboard/provider', label: 'Provider setup', icon: Store, tone: 'yellow', show: (r: string) => r === 'admin' },
   { href: '/dashboard/provider/requests', label: 'Service requests', icon: ClipboardList, tone: 'red', show: (r: string) => r === 'admin' },
   { href: '/dashboard/provider/workforce', label: 'Work history', icon: UsersRound, tone: 'lavender', show: (r: string) => r === 'admin' },
-  { href: '/dashboard/work', label: 'My assigned work', icon: Wrench, tone: 'green', show: (r: string) => r === 'user' },
+  { href: '/dashboard/work', label: 'My assigned work', icon: Wrench, tone: 'green', show: (r: string) => r === 'user' || r === 'individual' },
   { href: '/dashboard/career', label: 'Career profile', icon: BriefcaseBusiness, tone: 'lavender', show: (r: string) => r === 'user' || r === 'individual' },
   { href: '/dashboard/jobs', label: 'Jobs & opportunities', icon: Briefcase, tone: 'green', show: (r: string) => r === 'user' || r === 'individual' },
   { href: '/dashboard/provider/jobs', label: 'Jobs & candidates', icon: Briefcase, tone: 'green', show: (r: string) => r === 'admin' },
@@ -70,7 +70,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     ? ['/dashboard', '/dashboard/services', '/dashboard/provider', '/dashboard/provider/requests', '/dashboard/provider/jobs', '/dashboard/settings']
     : user?.role === 'user'
       ? ['/dashboard', '/dashboard/services', '/dashboard/requests', '/dashboard/work', '/dashboard/career', '/dashboard/jobs']
-      : ['/dashboard', '/dashboard/services', '/dashboard/requests', '/dashboard/career', '/dashboard/jobs', '/dashboard/settings'];
+      : ['/dashboard', '/dashboard/services', '/dashboard/requests', '/dashboard/work', '/dashboard/career', '/dashboard/jobs', '/dashboard/settings'];
   const mobileTabs = MOBILE_TABS.filter((tab) => mobilePaths.includes(tab.href));
 
   return (
