@@ -48,6 +48,7 @@ export interface ChangePasswordDto {
 }
 
 export interface CreateSubAccountDto {
+  member_type?: string;
   first_name: string;
   middle_name?: string;
   last_name: string;

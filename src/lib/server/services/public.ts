@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { notFound } from '../errors';
@@ -26,7 +26,24 @@ export async function stats() {
     count('business'),
     count('institution'),
   ]);
-  return { individual, family, school, business, institution, total: individual + family + school + business + institution };
+  const providerCount = async (category: typeof schema.serviceCategoryEnum.enumValues[number]) => {
+    const r = await db.select({ count: sql<number>`count(*)::int` }).from(schema.serviceProviders)
+      .where(and(eq(schema.serviceProviders.category, category), eq(schema.serviceProviders.accepting_requests, true)));
+    return r[0]?.count ?? 0;
+  };
+  const [hospitals, schools, garages, services] = await Promise.all([
+    providerCount('hospital'), providerCount('school'), providerCount('garage'),
+    db.select({ count: sql<number>`count(*)::int` }).from(schema.providerServices)
+      .innerJoin(schema.serviceProviders, eq(schema.providerServices.provider_id, schema.serviceProviders.id))
+      .where(and(eq(schema.providerServices.is_active, true), eq(schema.serviceProviders.accepting_requests, true)))
+      .then((r) => r[0]?.count ?? 0),
+  ]);
+  return {
+    individual, family, school, business, institution,
+    total: individual + family + school + business + institution,
+    providers: { hospitals, schools, garages, total: hospitals + schools + garages },
+    active_services: services,
+  };
 }
 
 export async function resolveByProfileId(profileId: string, req: PublicRequestInfo) {

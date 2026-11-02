@@ -1,0 +1,84 @@
+'use client';
+
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import Link from 'next/link';
+import { ArrowRight, ClipboardList, MapPin, ShieldCheck } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/auth-store';
+import { Badge, LargeTitleHeader, SectionLabel } from '@/components/ui/GlassCard';
+
+type ServiceRequest = {
+  id: string; summary: string | null; sharing_scope: string; status: string;
+  answers: Record<string, unknown>; form_snapshot: Array<{ key: string; label: string }>;
+  region: string | null; district: string | null; ward: string | null; created_at: string;
+  assignments: Array<{ id: string; display_name: string; member_type: string; status: string; assigned_at: string; review: { id: string; moderation_status: string; rating: number; review: string | null; worker_response: string | null } | null }>;
+  service: { title: string; provider: { display_name: string; category: string } };
+  offers: Array<{ id: string; status: string; price_amount: string | null; currency: string; message: string | null; estimated_minutes: number | null; provider: { display_name: string; category: string; region: string | null; district: string | null; contact_number?: string | null } ; service: { title: string } }>;
+  review: { rating: number; review: string | null; provider_response?: string | null; moderation_status?: string } | null;
+};
+
+const tone = (status: string) => status === 'accepted' || status === 'completed' ? 'green' : status === 'cancelled' ? 'grey' : status === 'in_progress' ? 'blue' : 'orange';
+
+export default function MyRequestsPage() {
+  const { user } = useAuthStore();
+  const qc = useQueryClient();
+  const { data: requests, isLoading } = useQuery({ queryKey: ['marketplace-my-requests', user?.sub], queryFn: () => api.get<ServiceRequest[]>('/marketplace/requests'), enabled: !!user });
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, { rating: number; review: string }>>({});
+  const [workerReviewDrafts, setWorkerReviewDrafts] = useState<Record<string, { rating: number; review: string }>>({});
+  const accept = useMutation({
+    mutationFn: (offerId: string) => api.post(`/marketplace/offers/${offerId}/accept`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); toast.success('You chose this provider'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const update = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/marketplace/requests/${id}`, { status }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); toast.success('Request updated'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const leaveReview = useMutation({
+    mutationFn: ({ id, rating, review }: { id: string; rating: number; review: string }) => api.post(`/marketplace/requests/${id}/review`, { rating, review }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); toast.success('Thanks for reviewing this provider'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const leaveWorkerReview = useMutation({
+    mutationFn: ({ requestId, assignmentId, rating, review }: { requestId: string; assignmentId: string; rating: number; review: string }) => api.post(`/marketplace/requests/${requestId}/worker-reviews`, { assignment_id: assignmentId, rating, review }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-my-requests'] }); toast.success('Employee review submitted'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <LargeTitleHeader title="My service requests" subtitle="Compare provider offers and follow each request through completion." right={<Link href="/dashboard/services" className="glass rounded-full px-3 py-2 text-[13px] font-semibold text-accent-primary">Browse services</Link>} />
+      <SectionLabel tone="green">Requests and offers</SectionLabel>
+      {isLoading ? <div className="glass p-6 text-center text-ink-secondary">Loading requests…</div> : !requests?.length ? (
+        <div className="glass p-8 text-center"><ClipboardList size={30} className="mx-auto mb-3 text-accent-primary" /><div className="font-semibold text-ink-primary">You have no requests yet</div><p className="mt-1 text-[14px] text-ink-secondary">Choose a hospital, school, or emergency garage service to get started.</p><Link href="/dashboard/services" className="mt-4 inline-flex items-center gap-2 text-[14px] font-semibold text-accent-primary">Find a service <ArrowRight size={16} /></Link></div>
+      ) : <div className="space-y-4">{requests.map((request) => <article key={request.id} className="glass p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><div className="text-[17px] font-semibold text-ink-primary">{request.summary || request.service.title}</div><div className="mt-1 text-[13px] text-ink-secondary">{request.service.title} · originally selected {request.service.provider.display_name}</div></div>
+          <Badge tone={tone(request.status)}>{request.status.replace('_', ' ')}</Badge>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3 text-[12px] text-ink-tertiary"><span>{request.sharing_scope === 'matching_providers' ? 'Shared with nearby matching providers' : 'Shared with selected provider only'}</span>{[request.ward, request.district, request.region].filter(Boolean).length > 0 && <span className="inline-flex items-center gap-1"><MapPin size={13} />{[request.ward, request.district, request.region].filter(Boolean).join(', ')}</span>}</div>
+        {request.assignments.length > 0 && <div className="mt-3 rounded-xl border border-accent-success/20 bg-accent-success/5 p-3"><div className="text-[12px] font-semibold text-ink-primary">Your service team</div><div className="mt-1 flex flex-wrap gap-2">{request.assignments.map((worker) => <span key={worker.id} className="rounded-full bg-white/70 px-3 py-1 text-[12px] text-ink-secondary">{worker.display_name}</span>)}</div></div>}
+        <div className="mt-3 rounded-xl bg-white/45 p-3">
+          {request.form_snapshot.map((field) => { const value = request.answers?.[field.key]; if (value === undefined || value === null || value === '') return null; return <div key={field.key} className="flex gap-2 border-b border-separator py-2 last:border-0"><div className="w-1/3 shrink-0 text-[12px] text-ink-tertiary">{field.label}</div><div className="whitespace-pre-wrap text-[13px] text-ink-primary">{String(value)}</div></div>; })}
+        </div>
+        {request.offers.length > 0 && <>
+          <div className="mt-5 text-[14px] font-semibold text-ink-primary">Provider offers</div>
+          <div className="mt-2 space-y-3">{request.offers.map((offer) => <div key={offer.id} className={`rounded-2xl border p-4 ${offer.status === 'accepted' ? 'border-accent-success/40 bg-accent-success/5' : 'border-glass-border bg-white/45'}`}>
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-semibold text-ink-primary">{offer.provider.display_name}</div><div className="text-[12px] capitalize text-ink-tertiary">{offer.provider.category} · {offer.service.title}{[offer.provider.district, offer.provider.region].filter(Boolean).length ? ` · ${[offer.provider.district, offer.provider.region].filter(Boolean).join(', ')}` : ''}</div></div><Badge tone={offer.status === 'accepted' ? 'green' : offer.status === 'declined' ? 'grey' : 'blue'}>{offer.status}</Badge></div>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[13px] text-ink-secondary"><span className="font-semibold text-ink-primary">{offer.price_amount ? `${Number(offer.price_amount).toLocaleString()} ${offer.currency}` : 'Price by quote'}</span>{offer.estimated_minutes && <span>Estimated response: {offer.estimated_minutes} min</span>}</div>
+            {offer.message && <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{offer.message}</p>}
+            {offer.status === 'accepted' && offer.provider.contact_number && <a href={`tel:${offer.provider.contact_number}`} className="mt-3 inline-flex rounded-full bg-accent-primary/10 px-3 py-2 text-[13px] font-semibold text-accent-primary">Call provider: {offer.provider.contact_number}</a>}
+            {offer.status === 'pending' && ['open', 'offered'].includes(request.status) && <button onClick={() => accept.mutate(offer.id)} disabled={accept.isPending} className="mt-3 rounded-full bg-accent-primary px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-50">{accept.isPending ? 'Accepting…' : 'Accept this offer'}</button>}
+          </div>)}</div>
+        </>}
+        {request.status === 'accepted' && <div className="mt-4 flex items-start gap-2 rounded-xl bg-accent-success/10 p-3 text-[13px] text-ink-secondary"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent-success" />The provider you accepted will update the request as they begin and complete the service.</div>}
+        {request.status === 'completed' && (request.review ? <div className="mt-4 rounded-xl bg-accent-warning/10 p-3 text-[13px] text-ink-secondary"><span className="font-semibold text-ink-primary">Your review: {'★'.repeat(request.review.rating)}{'☆'.repeat(5 - request.review.rating)}</span>{request.review.review && <p className="mt-1">{request.review.review}</p>}{request.review.provider_response && <p className="mt-2 border-l-2 border-accent-primary/40 pl-2 text-[12px]">Provider response: {request.review.provider_response}</p>}</div> : <form onSubmit={(e) => { e.preventDefault(); const draft = reviewDrafts[request.id] ?? { rating: 5, review: '' }; leaveReview.mutate({ id: request.id, ...draft }); }} className="mt-4 space-y-3 rounded-xl bg-accent-warning/10 p-4"><div className="font-semibold text-ink-primary">Rate your experience with the organization</div><div className="flex flex-wrap items-end gap-3"><label className="text-[12px] font-medium text-ink-secondary">Rating<select value={reviewDrafts[request.id]?.rating ?? 5} onChange={(e) => setReviewDrafts((all) => ({ ...all, [request.id]: { ...(all[request.id] ?? { rating: 5, review: '' }), rating: Number(e.target.value) } }))} className="mt-1 block rounded-lg border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary"><option value={5}>★★★★★ 5</option><option value={4}>★★★★☆ 4</option><option value={3}>★★★☆☆ 3</option><option value={2}>★★☆☆☆ 2</option><option value={1}>★☆☆☆☆ 1</option></select></label><label className="min-w-[220px] flex-1 text-[12px] font-medium text-ink-secondary">Review<textarea maxLength={2000} value={reviewDrafts[request.id]?.review ?? ''} onChange={(e) => setReviewDrafts((all) => ({ ...all, [request.id]: { ...(all[request.id] ?? { rating: 5, review: '' }), review: e.target.value } }))} className="mt-1 min-h-16 w-full rounded-lg border border-glass-border bg-white/50 px-3 py-2 text-[13px] text-ink-primary" /></label></div><button type="submit" disabled={leaveReview.isPending} className="rounded-full bg-accent-primary px-4 py-2 text-[13px] font-semibold text-white">{leaveReview.isPending ? 'Submitting…' : 'Submit review'}</button></form>)}
+        {request.status === 'completed' && request.assignments.length > 0 && <div className="mt-4 space-y-3 rounded-xl bg-accent-primary/5 p-4"><div><div className="font-semibold text-ink-primary">Review the employees who handled this service</div><p className="mt-1 text-[12px] text-ink-secondary">Your feedback is linked to this completed job and shared privately with the employee and organization.</p></div>{request.assignments.map((worker) => <div key={worker.id} className="rounded-xl border border-glass-border bg-white/55 p-3">{worker.review?.moderation_status === 'removed' ? <p className="text-[12px] text-ink-tertiary">Feedback removed after platform review.</p> : worker.review ? <><div className="text-[13px] font-semibold text-ink-primary">{worker.display_name} · {'★'.repeat(worker.review.rating)}{'☆'.repeat(5 - worker.review.rating)}</div>{worker.review.review && <p className="mt-1 whitespace-pre-wrap text-[13px] text-ink-secondary">{worker.review.review}</p>}{worker.review.worker_response && <p className="mt-2 border-l-2 border-accent-primary/40 pl-2 text-[12px] text-ink-secondary">Employee response: {worker.review.worker_response}</p>}</> : <form onSubmit={(e) => { e.preventDefault(); const draft = workerReviewDrafts[worker.id] ?? { rating: 5, review: '' }; leaveWorkerReview.mutate({ requestId: request.id, assignmentId: worker.id, ...draft }); }} className="space-y-2"><div className="font-semibold text-ink-primary">Rate {worker.display_name}{worker.status === 'released' ? ' (previously assigned)' : ''}</div><div className="flex flex-wrap items-end gap-2"><label className="text-[12px] text-ink-secondary">Rating<select value={workerReviewDrafts[worker.id]?.rating ?? 5} onChange={(e) => setWorkerReviewDrafts((all) => ({ ...all, [worker.id]: { ...(all[worker.id] ?? { rating: 5, review: '' }), rating: Number(e.target.value) } }))} className="mt-1 block rounded-lg border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary"><option value={5}>★★★★★ 5</option><option value={4}>★★★★☆ 4</option><option value={3}>★★★☆☆ 3</option><option value={2}>★★☆☆☆ 2</option><option value={1}>★☆☆☆☆ 1</option></select></label><label className="min-w-[200px] flex-1 text-[12px] text-ink-secondary">Feedback<textarea maxLength={2000} value={workerReviewDrafts[worker.id]?.review ?? ''} onChange={(e) => setWorkerReviewDrafts((all) => ({ ...all, [worker.id]: { ...(all[worker.id] ?? { rating: 5, review: '' }), review: e.target.value } }))} className="mt-1 min-h-14 w-full rounded-lg border border-glass-border bg-white/50 px-3 py-2 text-[13px] text-ink-primary" /></label><button type="submit" disabled={leaveWorkerReview.isPending} className="rounded-full bg-accent-primary px-4 py-2 text-[13px] font-semibold text-white">{leaveWorkerReview.isPending ? 'Submitting…' : 'Submit employee review'}</button></div></form>}</div>)}</div>}
+        {['open', 'offered'].includes(request.status) && <button onClick={() => update.mutate({ id: request.id, status: 'cancelled' })} className="mt-4 text-[13px] font-medium text-accent-danger">Cancel request</button>}
+      </article>)}</div>}
+    </div>
+  );
+}

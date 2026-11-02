@@ -15,9 +15,9 @@ apps/api        Legacy NestJS reference (not deployed)
 
 ## Database
 
-The app uses PostgreSQL via Drizzle. If `DATABASE_URL` is set, it is used as the explicit connection. Otherwise it automatically uses the Supabase session pooler from the project `.env`; Supabase connections enable SSL automatically. The standalone `supabase_db_password` is applied in memory so a rotated password does not leave the URLs' embedded password stale.
+The app uses PostgreSQL via Drizzle. In local development, put a local Postgres `DATABASE_URL` in the ignored `.env.local` file. `.env.local` takes precedence over `.env`, including for database scripts such as `pnpm db:push` and `pnpm db:seed`. For deployed builds, set `DATABASE_URL` in Vercel's Production environment to the Supabase connection string (or set `supabase_session_pooler`); Vercel supplies those values to the production deployment when changes reach `main`. The Vercel production build applies additive SQL files from `packages/db/migrations/` before building the app; previews skip this production-only step. Supabase connections enable SSL automatically. The standalone `supabase_db_password` is applied in memory so a rotated password does not leave the URLs' embedded password stale.
 
-To use another database locally, set `DATABASE_URL` in `.env` (and set `DATABASE_SSL=true` if required).
+To use another database locally, set `DATABASE_URL` in `.env.local` (and set `DATABASE_SSL=true` if required). The development fallback is `postgresql://taarifa:taarifa_dev_2026@localhost:5432/taarifa_id`.
 
 Start Postgres (Debian/Ubuntu 15):
 
@@ -79,12 +79,19 @@ Required env (Vercel dashboard or local `.env`): `DATABASE_URL` (or `supabase_se
 | lookups | `GET /lookups` |
 | system-admin | `/admin/dashboard`, `/admin/accounts`, `/admin/users`, `/admin/payments`, `/admin/reports/url-access`, `/admin/activate`, `/admin/lookups`, `/admin/logs` (all `system_admin` only) |
 | public | `GET /public/profiles/:profileId`, `GET /public/stats` |
+| career | `GET|PUT /career/me`, `POST /career/share`, `DELETE /career/share/:id`, `POST /career/leave-organization`, employer `GET|POST /career/employer/records`, `POST /career/employer/records/:id/resolve`, worker `POST /career/records/:id/respond`, public `GET /career/share/:token` |
+| jobs | worker `GET|PUT /jobs/preferences`, `GET /jobs`, `GET /jobs/applications`, `POST /jobs/:id/apply`, `DELETE /jobs/applications/:id`; employer `GET|POST /employer/jobs`, `PATCH /employer/jobs/:id`, `GET /employer/jobs/:id/applications`, `PATCH /employer/applications/:id`, `GET /employer/candidates` |
 
 ## Frontend
 
 - Public: `/`, `/register`, `/login`, `/forgot-password`, `/profile/[profileId]`, `/renew/[profileId]`
 - Dashboard (authenticated): `/dashboard`, `/dashboard/profile`, `/dashboard/payments`, `/dashboard/printable`, `/dashboard/sub-accounts`, `/dashboard/settings`, `/dashboard/move-account`, `/dashboard/notifications`
 - System admin console: `/admin/dashboard`, `/admin/accounts`, `/admin/users`, `/admin/payments`, `/admin/reports`
+- Service marketplace: clients browse `/dashboard/services`, submit `/dashboard/services/:id` requests, and manage offers in `/dashboard/requests`; business and school admins set up `/dashboard/provider` services, respond in `/dashboard/provider/requests`, and assign active employee member accounts to accepted work. Clients see assigned workers; employee accounts use `/dashboard/work` to view their assigned jobs.
+- Marketplace privacy: a request shares only the form answers and area entered for that request. `matching_providers` shares it with providers in the same category and region (and district when supplied); saved profile/health data is not attached automatically.
+- Worker assignment and review privacy: only the accepted provider can assign its own active employee sub-accounts; the worker can view only jobs assigned to their account, and clients see worker names for their own request. Assignment changes are recorded in `service_assignment_events`. Clients can separately review the provider and assigned workers after completion; worker ratings remain private to the worker and organization, while review appeals are handled by system admins and audited.
+- Career portability: individual and employee accounts can manage a private career profile at `/dashboard/career`. Organization admins can submit dated employment records for active employee members; workers acknowledge or dispute pending records. Workers can create purpose-limited links to selected verified records (7/14/30-day expiry) and revoke them. Managed employees can leave an organization after resolving active assignments while keeping their own account and career history. Share views omit contact details and client/service data. Career export remains to be implemented.
+- Job discovery: adult individual and employee users can opt into candidate visibility (off by default), choose categories and locations, browse openings at `/dashboard/jobs`, and select which career information to share with each application. The current organization is excluded from candidate search and contact information is withheld. Organization admins publish jobs and review consenting candidates/applicants at `/dashboard/provider/jobs`.
 
 ## Test accounts (dev)
 
@@ -99,4 +106,5 @@ Regular accounts register via the app; first login uses the SMS code shown in th
 ```bash
 pnpm run build          # build @taarifa/db then next build
 pnpm run typecheck
+pnpm run db:migrate:production # runs only in Vercel's production build environment
 ```

@@ -26,6 +26,7 @@ export default function SubAccountsPage() {
     mobile_number: '',
     username: '',
     password: '',
+    member_type: user?.account_type === 'family' ? 'adult' : 'employee',
   });
   const [resetPw, setResetPw] = useState<{ id: string; name: string; password: string } | null>(null);
 
@@ -138,6 +139,9 @@ export default function SubAccountsPage() {
           <IOSListGroup>
             <IOSInput label="First name" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} />
             <IOSInput label="Last name" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />
+            {user?.account_type && ['family', 'school'].includes(user.account_type) && <IOSSelect label="Member type" value={form.member_type} onChange={(v) => set('member_type', v)}>
+              {user.account_type === 'family' ? <><option value="adult">Adult</option><option value="underage">Underage</option></> : <><option value="employee">Employee</option><option value="student">Student</option></>}
+            </IOSSelect>}
             <IOSSelect label="Gender" value={form.gender} onChange={(v) => set('gender', v)}>
               <option value="Male">Male</option>
               <option value="Female">Female</option>

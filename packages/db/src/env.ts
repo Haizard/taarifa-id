@@ -3,14 +3,17 @@ import { dirname, resolve } from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 import type { PoolConfig } from 'pg';
 
-/** Load the nearest project .env, regardless of which workspace starts Node. */
+/** Load the nearest project env files, regardless of which workspace starts Node. */
 function loadProjectEnv() {
   let directory = process.cwd();
 
   while (true) {
+    const localEnvPath = resolve(directory, '.env.local');
     const envPath = resolve(directory, '.env');
-    if (existsSync(envPath)) {
-      loadDotenv({ path: envPath });
+    if (existsSync(localEnvPath) || existsSync(envPath)) {
+      // dotenv does not override existing values, so load .env.local first.
+      if (existsSync(localEnvPath)) loadDotenv({ path: localEnvPath });
+      if (existsSync(envPath)) loadDotenv({ path: envPath });
       return;
     }
 

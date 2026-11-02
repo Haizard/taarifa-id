@@ -1,5 +1,5 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp, integer, numeric, jsonb, uniqueIndex, index, primaryKey, pgEnum, foreignKey } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { pgTable, uuid, varchar, text, boolean, timestamp, integer, numeric, jsonb, uniqueIndex, index, primaryKey, pgEnum, foreignKey, check, date } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
 
 export const accountTypeEnum = pgEnum('account_type', ['individual', 'family', 'school', 'business', 'institution']);
 export const roleEnum = pgEnum('role', ['individual', 'admin', 'user', 'system_admin']);
@@ -19,6 +19,24 @@ export const profileStatusEnum = pgEnum('profile_status_value', ['active', 'expi
 export const genderEnum = pgEnum('gender', ['Male', 'Female']);
 export const nationalityEnum = pgEnum('nationality', ['Tanzanian', 'Foreign']);
 export const employmentTypeEnum = pgEnum('employment_type', ['Government', 'Foreign_Government', 'Foreign_Agency', 'Company', 'Cooperate', 'Self_Employed', 'Not_Working']);
+export const serviceCategoryEnum = pgEnum('service_category', ['hospital', 'school', 'garage']);
+export const serviceDeliveryEnum = pgEnum('service_delivery', ['appointment', 'on_demand', 'delivery', 'enrollment']);
+export const servicePriceTypeEnum = pgEnum('service_price_type', ['fixed', 'quote_required', 'free']);
+export const serviceSharingEnum = pgEnum('service_sharing', ['selected_provider', 'matching_providers']);
+export const serviceRequestStatusEnum = pgEnum('service_request_status', ['open', 'offered', 'accepted', 'in_progress', 'completed', 'cancelled']);
+export const serviceOfferStatusEnum = pgEnum('service_offer_status', ['pending', 'accepted', 'declined']);
+export const serviceAssignmentStatusEnum = pgEnum('service_assignment_status', ['active', 'released']);
+export const serviceAssignmentEventTypeEnum = pgEnum('service_assignment_event_type', ['assigned', 'released']);
+export const serviceWorkerReviewStatusEnum = pgEnum('service_worker_review_status', ['active', 'disputed', 'upheld', 'removed']);
+export const careerVerificationStatusEnum = pgEnum('career_verification_status', ['pending', 'verified', 'disputed', 'rejected']);
+
+export type ServiceFormField = {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+  required?: boolean;
+  options?: string[];
+};
 
 const timestamps = {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -340,6 +358,213 @@ export const institutionMembers = pgTable('institution_members', {
 }, (t) => [primaryKey({ columns: [t.institution_id, t.person_profile_id] })]);
 
 // ============================================================
+// Service marketplace
+// ============================================================
+
+export const serviceProviders = pgTable('service_providers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  account_id: uuid('account_id').notNull().unique().references(() => accounts.id),
+  category: serviceCategoryEnum('category').notNull(),
+  display_name: varchar('display_name', { length: 200 }).notNull(),
+  description: text('description'),
+  contact_number: varchar('contact_number', { length: 20 }),
+  region: varchar('region', { length: 100 }),
+  district: varchar('district', { length: 100 }),
+  ward: varchar('ward', { length: 100 }),
+  accepting_requests: boolean('accepting_requests').notNull().default(true),
+  ...timestamps,
+}, (t) => [index('service_providers_category_idx').on(t.category)]);
+
+export const providerServices = pgTable('provider_services', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description'),
+  delivery_mode: serviceDeliveryEnum('delivery_mode').notNull(),
+  price_type: servicePriceTypeEnum('price_type').notNull().default('quote_required'),
+  price_amount: numeric('price_amount', { precision: 12, scale: 2 }),
+  currency: varchar('currency', { length: 8 }).notNull().default('TZS'),
+  estimated_minutes: integer('estimated_minutes'),
+  form_fields: jsonb('form_fields').$type<ServiceFormField[]>().notNull().default([]),
+  is_active: boolean('is_active').notNull().default(true),
+  ...timestamps,
+}, (t) => [index('provider_services_provider_idx').on(t.provider_id)]);
+
+export const serviceRequests = pgTable('service_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  requester_account_id: uuid('requester_account_id').notNull().references(() => accounts.id),
+  requester_profile_id: uuid('requester_profile_id').references(() => personProfiles.id),
+  provider_service_id: uuid('provider_service_id').notNull().references(() => providerServices.id),
+  sharing_scope: serviceSharingEnum('sharing_scope').notNull().default('selected_provider'),
+  status: serviceRequestStatusEnum('status').notNull().default('open'),
+  summary: varchar('summary', { length: 240 }),
+  answers: jsonb('answers').$type<Record<string, unknown>>().notNull().default({}),
+  form_snapshot: jsonb('form_snapshot').$type<ServiceFormField[]>().notNull().default([]),
+  region: varchar('region', { length: 100 }),
+  district: varchar('district', { length: 100 }),
+  ward: varchar('ward', { length: 100 }),
+  ...timestamps,
+}, (t) => [
+  index('service_requests_requester_idx').on(t.requester_account_id),
+  index('service_requests_service_idx').on(t.provider_service_id),
+  index('service_requests_status_idx').on(t.status),
+]);
+
+export const serviceOffers = pgTable('service_offers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => serviceRequests.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  provider_service_id: uuid('provider_service_id').notNull().references(() => providerServices.id),
+  price_amount: numeric('price_amount', { precision: 12, scale: 2 }),
+  currency: varchar('currency', { length: 8 }).notNull().default('TZS'),
+  message: text('message'),
+  estimated_minutes: integer('estimated_minutes'),
+  status: serviceOfferStatusEnum('status').notNull().default('pending'),
+  ...timestamps,
+}, (t) => [index('service_offers_request_idx').on(t.request_id), index('service_offers_provider_idx').on(t.provider_id)]);
+
+export const serviceReviews = pgTable('service_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().unique().references(() => serviceRequests.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  reviewer_account_id: uuid('reviewer_account_id').notNull().references(() => accounts.id),
+  rating: integer('rating').notNull(),
+  review: text('review'),
+  provider_response: text('provider_response'),
+  provider_disputed_at: timestamp('provider_disputed_at', { withTimezone: true }),
+  moderation_status: serviceWorkerReviewStatusEnum('moderation_status').notNull().default('active'),
+  moderation_note: text('moderation_note'),
+  moderated_by_account_id: uuid('moderated_by_account_id').references(() => accounts.id),
+  moderated_at: timestamp('moderated_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  index('service_reviews_provider_idx').on(t.provider_id),
+  check('service_reviews_rating_range', sql`${t.rating} between 1 and 5`),
+]);
+
+export const serviceAssignments = pgTable('service_assignments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => serviceRequests.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  assigned_by_account_id: uuid('assigned_by_account_id').notNull().references(() => accounts.id),
+  status: serviceAssignmentStatusEnum('status').notNull().default('active'),
+  assigned_at: timestamp('assigned_at', { withTimezone: true }).defaultNow().notNull(),
+  released_at: timestamp('released_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  index('service_assignments_request_idx').on(t.request_id),
+  index('service_assignments_provider_idx').on(t.provider_id),
+  index('service_assignments_worker_idx').on(t.worker_account_id),
+  uniqueIndex('service_assignments_active_unique').on(t.request_id, t.worker_account_id).where(sql`${t.status} = 'active'`),
+]);
+
+export const serviceAssignmentEvents = pgTable('service_assignment_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  assignment_id: uuid('assignment_id').notNull().references(() => serviceAssignments.id),
+  actor_account_id: uuid('actor_account_id').notNull().references(() => accounts.id),
+  event_type: serviceAssignmentEventTypeEnum('event_type').notNull(),
+  note: text('note'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('service_assignment_events_assignment_idx').on(t.assignment_id)]);
+
+export const serviceWorkerReviews = pgTable('service_worker_reviews', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => serviceRequests.id),
+  assignment_id: uuid('assignment_id').notNull().references(() => serviceAssignments.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  reviewer_account_id: uuid('reviewer_account_id').notNull().references(() => accounts.id),
+  rating: integer('rating').notNull(),
+  review: text('review'),
+  worker_response: text('worker_response'),
+  worker_disputed_at: timestamp('worker_disputed_at', { withTimezone: true }),
+  moderation_status: serviceWorkerReviewStatusEnum('moderation_status').notNull().default('active'),
+  moderation_note: text('moderation_note'),
+  moderated_by_account_id: uuid('moderated_by_account_id').references(() => accounts.id),
+  moderated_at: timestamp('moderated_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  uniqueIndex('service_worker_reviews_assignment_unique').on(t.assignment_id),
+  uniqueIndex('service_worker_reviews_request_worker_unique').on(t.request_id, t.worker_account_id),
+  index('service_worker_reviews_worker_idx').on(t.worker_account_id),
+  index('service_worker_reviews_provider_idx').on(t.provider_id),
+  check('service_worker_reviews_rating_range', sql`${t.rating} between 1 and 5`),
+]);
+
+export const careerProfiles = pgTable('career_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  account_id: uuid('account_id').notNull().unique().references(() => accounts.id),
+  headline: varchar('headline', { length: 200 }),
+  summary: text('summary'),
+  skills: jsonb('skills').$type<string[]>().notNull().default([]),
+  job_seeking: boolean('job_seeking').notNull().default(false),
+  job_categories: jsonb('job_categories').$type<string[]>().notNull().default([]),
+  job_locations: jsonb('job_locations').$type<string[]>().notNull().default([]),
+  excluded_employer_account_ids: jsonb('excluded_employer_account_ids').$type<string[]>().notNull().default([]),
+  ...timestamps,
+});
+
+export const jobPostings = pgTable('job_postings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  organization_account_id: uuid('organization_account_id').notNull().references(() => accounts.id),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  title: varchar('title', { length: 180 }).notNull(),
+  category: varchar('category', { length: 80 }).notNull(),
+  location: varchar('location', { length: 180 }).notNull(),
+  employment_type: varchar('employment_type', { length: 40 }).notNull(),
+  description: text('description').notNull(),
+  requirements: text('requirements'),
+  status: varchar('status', { length: 20 }).notNull().default('open'),
+  closes_at: timestamp('closes_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [index('job_postings_org_idx').on(t.organization_account_id), index('job_postings_status_idx').on(t.status)]);
+
+export const jobApplications = pgTable('job_applications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  job_id: uuid('job_id').notNull().references(() => jobPostings.id),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  status: varchar('status', { length: 24 }).notNull().default('submitted'),
+  cover_note: text('cover_note'),
+  employer_note: text('employer_note'),
+  shared_profile: boolean('shared_profile').notNull().default(false),
+  shared_history_ids: jsonb('shared_history_ids').$type<string[]>().notNull().default([]),
+  ...timestamps,
+}, (t) => [uniqueIndex('job_applications_job_worker_unique').on(t.job_id, t.worker_account_id), index('job_applications_worker_idx').on(t.worker_account_id)]);
+
+export const careerHistory = pgTable('career_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  organization_account_id: uuid('organization_account_id').notNull().references(() => accounts.id),
+  organization_name: varchar('organization_name', { length: 200 }).notNull(),
+  provider_id: uuid('provider_id').references(() => serviceProviders.id),
+  position: varchar('position', { length: 150 }).notNull(),
+  started_on: date('started_on').notNull(),
+  ended_on: date('ended_on'),
+  verification_status: careerVerificationStatusEnum('verification_status').notNull().default('pending'),
+  verified_by_account_id: uuid('verified_by_account_id').references(() => accounts.id),
+  worker_acknowledged_at: timestamp('worker_acknowledged_at', { withTimezone: true }),
+  worker_note: text('worker_note'),
+  moderation_note: text('moderation_note'),
+  ...timestamps,
+}, (t) => [
+  index('career_history_worker_idx').on(t.worker_account_id),
+  index('career_history_organization_idx').on(t.organization_account_id),
+]);
+
+export const careerShareGrants = pgTable('career_share_grants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  token: uuid('token').notNull().defaultRandom().unique(),
+  worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
+  include_profile: boolean('include_profile').notNull().default(true),
+  history_record_ids: jsonb('history_record_ids').$type<string[]>().notNull().default([]),
+  purpose: varchar('purpose', { length: 240 }).notNull(),
+  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revoked_at: timestamp('revoked_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('career_share_grants_worker_idx').on(t.worker_account_id)]);
+
+// ============================================================
 // Profile status / payments
 // ============================================================
 
@@ -479,6 +704,11 @@ export const accountsRelations = relations(accounts, ({ many, one }) => ({
   payments: many(payments),
   profileStatus: one(profileStatus, { fields: [accounts.id], references: [profileStatus.account_id] }),
   printableCards: many(printableCards),
+  careerProfiles: many(careerProfiles),
+  careerHistoryAsWorker: many(careerHistory, { relationName: 'career_worker' }),
+  careerHistoryAsOrganization: many(careerHistory, { relationName: 'career_organization' }),
+  careerHistoryVerified: many(careerHistory, { relationName: 'career_verifier' }),
+  careerShareGrants: many(careerShareGrants),
 }));
 
 export const personProfilesRelations = relations(personProfiles, ({ one, many }) => ({
@@ -545,4 +775,75 @@ export const familyDoctorsRelations = relations(familyDoctors, ({ one }) => ({
 
 export const familyLinksRelations = relations(familyLinks, ({ one }) => ({
   family: one(families, { fields: [familyLinks.family_id], references: [families.id] }),
+}));
+
+export const serviceProvidersRelations = relations(serviceProviders, ({ one, many }) => ({
+  account: one(accounts, { fields: [serviceProviders.account_id], references: [accounts.id] }),
+  services: many(providerServices),
+  offers: many(serviceOffers),
+  reviews: many(serviceReviews),
+  careerHistory: many(careerHistory),
+}));
+
+export const providerServicesRelations = relations(providerServices, ({ one, many }) => ({
+  provider: one(serviceProviders, { fields: [providerServices.provider_id], references: [serviceProviders.id] }),
+  requests: many(serviceRequests),
+  offers: many(serviceOffers),
+}));
+
+export const serviceRequestsRelations = relations(serviceRequests, ({ one, many }) => ({
+  requester: one(accounts, { fields: [serviceRequests.requester_account_id], references: [accounts.id] }),
+  requesterProfile: one(personProfiles, { fields: [serviceRequests.requester_profile_id], references: [personProfiles.id] }),
+  service: one(providerServices, { fields: [serviceRequests.provider_service_id], references: [providerServices.id] }),
+  offers: many(serviceOffers),
+  review: one(serviceReviews),
+  assignments: many(serviceAssignments),
+}));
+
+export const serviceOffersRelations = relations(serviceOffers, ({ one }) => ({
+  request: one(serviceRequests, { fields: [serviceOffers.request_id], references: [serviceRequests.id] }),
+  provider: one(serviceProviders, { fields: [serviceOffers.provider_id], references: [serviceProviders.id] }),
+  service: one(providerServices, { fields: [serviceOffers.provider_service_id], references: [providerServices.id] }),
+}));
+
+export const serviceReviewsRelations = relations(serviceReviews, ({ one }) => ({
+  request: one(serviceRequests, { fields: [serviceReviews.request_id], references: [serviceRequests.id] }),
+  provider: one(serviceProviders, { fields: [serviceReviews.provider_id], references: [serviceProviders.id] }),
+  reviewer: one(accounts, { fields: [serviceReviews.reviewer_account_id], references: [accounts.id] }),
+}));
+
+export const serviceAssignmentsRelations = relations(serviceAssignments, ({ one, many }) => ({
+  request: one(serviceRequests, { fields: [serviceAssignments.request_id], references: [serviceRequests.id] }),
+  provider: one(serviceProviders, { fields: [serviceAssignments.provider_id], references: [serviceProviders.id] }),
+  worker: one(accounts, { fields: [serviceAssignments.worker_account_id], references: [accounts.id] }),
+  assignedBy: one(accounts, { fields: [serviceAssignments.assigned_by_account_id], references: [accounts.id] }),
+  events: many(serviceAssignmentEvents),
+}));
+
+export const serviceAssignmentEventsRelations = relations(serviceAssignmentEvents, ({ one }) => ({
+  assignment: one(serviceAssignments, { fields: [serviceAssignmentEvents.assignment_id], references: [serviceAssignments.id] }),
+  actor: one(accounts, { fields: [serviceAssignmentEvents.actor_account_id], references: [accounts.id] }),
+}));
+
+export const careerProfilesRelations = relations(careerProfiles, ({ one }) => ({
+  account: one(accounts, { fields: [careerProfiles.account_id], references: [accounts.id] }),
+}));
+
+export const careerHistoryRelations = relations(careerHistory, ({ one }) => ({
+  worker: one(accounts, { fields: [careerHistory.worker_account_id], references: [accounts.id], relationName: 'career_worker' }),
+  organization: one(accounts, { fields: [careerHistory.organization_account_id], references: [accounts.id], relationName: 'career_organization' }),
+  verifier: one(accounts, { fields: [careerHistory.verified_by_account_id], references: [accounts.id], relationName: 'career_verifier' }),
+  provider: one(serviceProviders, { fields: [careerHistory.provider_id], references: [serviceProviders.id] }),
+}));
+
+export const careerShareGrantsRelations = relations(careerShareGrants, ({ one }) => ({
+  worker: one(accounts, { fields: [careerShareGrants.worker_account_id], references: [accounts.id] }),
+}));
+
+export const serviceWorkerReviewsRelations = relations(serviceWorkerReviews, ({ one }) => ({
+  request: one(serviceRequests, { fields: [serviceWorkerReviews.request_id], references: [serviceRequests.id] }),
+  assignment: one(serviceAssignments, { fields: [serviceWorkerReviews.assignment_id], references: [serviceAssignments.id] }),
+  provider: one(serviceProviders, { fields: [serviceWorkerReviews.provider_id], references: [serviceProviders.id] }),
+  worker: one(accounts, { fields: [serviceWorkerReviews.worker_account_id], references: [accounts.id] }),
+  reviewer: one(accounts, { fields: [serviceWorkerReviews.reviewer_account_id], references: [accounts.id] }),
 }));

@@ -11,6 +11,9 @@ import * as lookupsService from './services/lookups';
 import * as printableService from './services/printable';
 import * as systemAdminService from './services/system-admin';
 import * as publicService from './services/public';
+import * as marketplaceService from './services/marketplace';
+import * as careerService from './services/career';
+import * as jobsService from './services/jobs';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -104,6 +107,52 @@ const routes: Route[] = [
   { method: 'GET', segments: ['public', 'profiles', { param: 'profileId' }], public: true, handler: (c) => publicService.resolveByProfileId(c.params.profileId, publicRequestInfo(c.req)) },
   { method: 'GET', segments: ['public', 'profiles', 'by-code', { param: 'profileCode' }], public: true, handler: (c) => publicService.resolveByProfileCode(c.params.profileCode, publicRequestInfo(c.req)) },
   { method: 'GET', segments: ['public', 'stats'], public: true, handler: () => publicService.stats() },
+
+  // Service marketplace
+  { method: 'GET', segments: ['career', 'me'], handler: (c) => careerService.getMyCareer(c.user!.sub) },
+  { method: 'PUT', segments: ['career', 'me'], handler: (c) => careerService.saveMyCareer(c.user!.sub, c.body) },
+  { method: 'POST', segments: ['career', 'share'], handler: (c) => careerService.createCareerShare(c.user!.sub, c.body) },
+  { method: 'DELETE', segments: ['career', 'share', { param: 'id' }], handler: (c) => careerService.revokeCareerShare(c.user!.sub, c.params.id) },
+  { method: 'POST', segments: ['career', 'leave-organization'], handler: (c) => careerService.leaveOrganization(c.user!.sub) },
+  { method: 'GET', segments: ['career', 'employer', 'records'], handler: (c) => careerService.listEmployerCareerRecords(c.user!.sub) },
+  { method: 'POST', segments: ['career', 'employer', 'records'], handler: (c) => careerService.createEmployerCareerRecord(c.user!.sub, c.body) },
+  { method: 'POST', segments: ['career', 'employer', 'records', { param: 'id' }, 'resolve'], handler: (c) => careerService.resolveEmployerCareerRecord(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['career', 'records', { param: 'id' }, 'respond'], handler: (c) => careerService.respondToCareerRecord(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['career', 'share', { param: 'token' }], public: true, handler: (c) => careerService.getSharedCareer(c.params.token) },
+  { method: 'GET', segments: ['jobs', 'preferences'], handler: (c) => jobsService.getJobPreferences(c.user!.sub) },
+  { method: 'PUT', segments: ['jobs', 'preferences'], handler: (c) => jobsService.saveJobPreferences(c.user!.sub, c.body) },
+  { method: 'GET', segments: ['jobs'], handler: (c) => jobsService.listJobs(c.user!.sub) },
+  { method: 'GET', segments: ['jobs', 'applications'], handler: (c) => jobsService.listMyApplications(c.user!.sub) },
+  { method: 'POST', segments: ['jobs', { param: 'id' }, 'apply'], handler: (c) => jobsService.applyToJob(c.user!.sub, c.params.id, c.body) },
+  { method: 'DELETE', segments: ['jobs', 'applications', { param: 'id' }], handler: (c) => jobsService.withdrawApplication(c.user!.sub, c.params.id) },
+  { method: 'GET', segments: ['employer', 'jobs'], handler: (c) => jobsService.listEmployerJobs(c.user!.sub) },
+  { method: 'POST', segments: ['employer', 'jobs'], handler: (c) => jobsService.createJob(c.user!.sub, c.body) },
+  { method: 'PATCH', segments: ['employer', 'jobs', { param: 'id' }], handler: (c) => jobsService.updateJob(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['employer', 'candidates'], handler: (c) => jobsService.searchCandidates(c.user!.sub, c.query) },
+  { method: 'GET', segments: ['employer', 'jobs', { param: 'id' }, 'applications'], handler: (c) => jobsService.listJobApplications(c.user!.sub, c.params.id) },
+  { method: 'PATCH', segments: ['employer', 'applications', { param: 'id' }], handler: (c) => jobsService.updateApplication(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['marketplace', 'services'], public: true, handler: (c) => marketplaceService.listServices(c.query.get('category') ?? undefined, c.query.get('q') ?? undefined) },
+  { method: 'GET', segments: ['marketplace', 'services', { param: 'id' }], public: true, handler: (c) => marketplaceService.getService(c.params.id) },
+  { method: 'GET', segments: ['marketplace', 'provider'], handler: (c) => marketplaceService.getMyProvider(c.user!.sub) },
+  { method: 'POST', segments: ['marketplace', 'provider'], handler: (c) => marketplaceService.saveProvider(c.user!.sub, c.body) },
+  { method: 'POST', segments: ['marketplace', 'services'], handler: (c) => marketplaceService.createService(c.user!.sub, c.body) },
+  { method: 'PATCH', segments: ['marketplace', 'services', { param: 'id' }], handler: (c) => marketplaceService.updateService(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['marketplace', 'requests'], handler: (c) => marketplaceService.listMyRequests(c.user!.sub) },
+  { method: 'POST', segments: ['marketplace', 'requests'], handler: (c) => marketplaceService.createRequest(c.user!.sub, c.body) },
+  { method: 'PATCH', segments: ['marketplace', 'requests', { param: 'id' }], handler: (c) => marketplaceService.updateRequestStatus(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['marketplace', 'provider', 'requests'], handler: (c) => marketplaceService.listProviderRequests(c.user!.sub) },
+  { method: 'GET', segments: ['marketplace', 'worker', 'assignments'], handler: (c) => marketplaceService.listMyServiceAssignments(c.user!.sub) },
+  { method: 'POST', segments: ['marketplace', 'worker', 'reviews', { param: 'id' }, 'response'], handler: (c) => marketplaceService.respondToWorkerReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'provider', 'reviews', { param: 'id' }, 'response'], handler: (c) => marketplaceService.respondToProviderReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'assignments'], handler: (c) => marketplaceService.updateServiceAssignment(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'offers'], handler: (c) => marketplaceService.submitOffer(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'offers', { param: 'id' }, 'accept'], handler: (c) => marketplaceService.acceptOffer(c.user!.sub, c.params.id) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'review'], handler: (c) => marketplaceService.createReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'worker-reviews'], handler: (c) => marketplaceService.createWorkerReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['admin', 'marketplace', 'worker-review-disputes'], roles: ['system_admin'], handler: () => marketplaceService.listWorkerReviewDisputes() },
+  { method: 'PATCH', segments: ['admin', 'marketplace', 'worker-reviews', { param: 'id' }, 'resolve'], roles: ['system_admin'], handler: (c) => marketplaceService.resolveWorkerReviewDispute(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['admin', 'marketplace', 'provider-review-disputes'], roles: ['system_admin'], handler: () => marketplaceService.listProviderReviewDisputes() },
+  { method: 'PATCH', segments: ['admin', 'marketplace', 'provider-reviews', { param: 'id' }, 'resolve'], roles: ['system_admin'], handler: (c) => marketplaceService.resolveProviderReviewDispute(c.user!.sub, c.params.id, c.body) },
 ];
 
 function publicRequestInfo(req: NextRequest) {

@@ -30,6 +30,15 @@ export async function createSubAccount(parentId: string, dto: CreateSubAccountDt
   const parent = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, parentId) });
   if (!parent || parent.role !== 'admin') throw badRequest('Only Admin accounts can create sub-accounts');
 
+  const allowedMemberTypes: Record<string, string[]> = {
+    family: ['adult', 'underage'],
+    school: ['student', 'employee'],
+    business: ['employee'],
+    institution: ['employee'],
+  };
+  const memberType = dto.member_type ?? (parent.account_type === 'family' ? 'adult' : 'employee');
+  if (!allowedMemberTypes[parent.account_type]?.includes(memberType)) throw badRequest('Choose a member type supported by this organization');
+
   const existing = await db.query.accounts.findFirst({
     where: (t, { or }) => or(eq(t.mobile_number, dto.mobile_number), eq(t.username, dto.username)),
   });
@@ -53,9 +62,9 @@ export async function createSubAccount(parentId: string, dto: CreateSubAccountDt
     })
     .returning();
 
-  await db.insert(schema.personProfiles).values({
+  const [memberProfile] = await db.insert(schema.personProfiles).values({
     owner_account_id: sub.id,
-    member_type: 'self',
+    member_type: memberType as typeof schema.memberTypeEnum.enumValues[number],
     profile_code: sub.profile_id,
     first_name: dto.first_name,
     middle_name: dto.middle_name ?? null,
@@ -65,7 +74,21 @@ export async function createSubAccount(parentId: string, dto: CreateSubAccountDt
     nationality: dto.nationality,
     nida_number: dto.nationality === 'Tanzanian' ? dto.nida_number ?? null : null,
     passport_number: dto.nationality === 'Foreign' ? dto.passport_number ?? null : null,
-  });
+  }).returning({ id: schema.personProfiles.id });
+
+  if (parent.account_type === 'business') {
+    const entity = await db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+    if (entity) await db.insert(schema.businessMembers).values({ business_id: entity.id, person_profile_id: memberProfile.id });
+  } else if (parent.account_type === 'school') {
+    const entity = await db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+    if (entity) await db.insert(schema.schoolMembers).values({ school_id: entity.id, person_profile_id: memberProfile.id, beneficiary_type: memberType === 'student' ? 'student' : 'employee' });
+  } else if (parent.account_type === 'institution') {
+    const entity = await db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+    if (entity) await db.insert(schema.institutionMembers).values({ institution_id: entity.id, person_profile_id: memberProfile.id });
+  } else if (parent.account_type === 'family') {
+    const entity = await db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+    if (entity) await db.insert(schema.familyMembers).values({ family_id: entity.id, person_profile_id: memberProfile.id, member_role: memberType === 'underage' ? 'underage' : 'adult' });
+  }
 
   await db.insert(schema.profileStatus).values({ account_id: sub.id, status: 'active' });
 

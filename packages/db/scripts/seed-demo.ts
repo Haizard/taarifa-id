@@ -33,6 +33,8 @@ const DEMO_USERNAMES = [
   'demo.family',
   'demo.school',
   'demo.business',
+  'demo.hospital',
+  'demo.garage',
   'demo.institution',
   'member.family',
   'member.school',
@@ -88,6 +90,24 @@ async function deleteDemoData() {
     columns: { id: true },
   });
   const institutionIds = institutionRows.map((i) => i.id);
+
+  const providerRows = await db.query.serviceProviders.findMany({
+    where: (t, { inArray }) => inArray(t.account_id, accountIds),
+    columns: { id: true },
+  });
+  const providerIds = providerRows.map((p) => p.id);
+  const requests = await db.query.serviceRequests.findMany({
+    where: (t, { inArray }) => inArray(t.requester_account_id, accountIds),
+    columns: { id: true },
+  });
+  const requestIds = requests.map((r) => r.id);
+  if (requestIds.length) await db.delete(schema.serviceOffers).where(inArray(schema.serviceOffers.request_id, requestIds));
+  if (providerIds.length) await db.delete(schema.serviceOffers).where(inArray(schema.serviceOffers.provider_id, providerIds));
+  if (requestIds.length) await db.delete(schema.serviceRequests).where(inArray(schema.serviceRequests.id, requestIds));
+  if (providerIds.length) {
+    await db.delete(schema.providerServices).where(inArray(schema.providerServices.provider_id, providerIds));
+    await db.delete(schema.serviceProviders).where(inArray(schema.serviceProviders.id, providerIds));
+  }
 
   await db.delete(schema.authCodes).where(inIds(schema.authCodes, schema.authCodes.account_id));
   await db.delete(schema.sessions).where(inIds(schema.sessions, schema.sessions.account_id));
@@ -658,15 +678,15 @@ async function seedBusiness() {
     .insert(schema.businesses)
     .values({
       account_id: acc.id,
-      business_name: 'Kilimanjaro Coffee Traders',
-      dealership: 'Coffee export and retail',
+      business_name: 'Moshi Roadside Rescue',
+      dealership: 'Emergency roadside repair and towing',
       tin_number: '123-456-789',
-      region: 'Kilimanjaro',
-      district: 'Moshi',
-      ward: 'Njoro',
-      business_contacts: '255272700000',
+      region: 'Dar es Salaam',
+      district: 'Kinondoni',
+      ward: 'Mikocheni',
+      business_contacts: '255222700000',
       manager_contacts: '255755000444',
-      extra_notes: 'Family-owned coffee business',
+      extra_notes: 'Roadside assistance and mobile repairs',
     })
     .returning();
 
@@ -677,7 +697,7 @@ async function seedBusiness() {
       birthdate: '1994-03-22',
       nida: '19940322005512233445',
       mobile: '255711000006',
-      employment: employment('Company', companyEmployer('Kilimanjaro Coffee Traders', 'Officer'), supervisorRow('Mariam Komba')),
+      employment: employment('Company', companyEmployer('Moshi Roadside Rescue', 'Technician'), supervisorRow('Mariam Komba')),
     },
     {
       first_name: 'Grace',
@@ -685,7 +705,7 @@ async function seedBusiness() {
       birthdate: '1997-08-09',
       nida: '19970809006013344556',
       mobile: '255711000007',
-      employment: employment('Company', companyEmployer('Kilimanjaro Coffee Traders', 'Engineer'), supervisorRow('Mariam Komba')),
+      employment: employment('Company', companyEmployer('Moshi Roadside Rescue', 'Mechanic'), supervisorRow('Mariam Komba')),
     },
   ];
 
@@ -829,13 +849,28 @@ async function seedSubAccounts() {
       })
       .returning();
 
-    await addPerson(acc.id, 'self', {
+    const memberType = parent.account_type === 'business' ? 'employee' : parent.account_type === 'family' ? 'adult' : parent.account_type === 'school' ? 'student' : 'employee';
+    const memberProfile = await addPerson(acc.id, memberType, {
       first_name: first,
       last_name: last,
       gender: 'Female',
       birthdate: `1995-0${i + 1}-0${i + 1}`,
       nida_number: `19950${i + 1}0${i + 1}001166778899`,
     });
+
+    if (parent.account_type === 'business') {
+      const business = await db.query.businesses.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+      if (business) await db.insert(schema.businessMembers).values({ business_id: business.id, person_profile_id: memberProfile.id });
+    } else if (parent.account_type === 'school') {
+      const school = await db.query.schools.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+      if (school) await db.insert(schema.schoolMembers).values({ school_id: school.id, person_profile_id: memberProfile.id, beneficiary_type: 'student' });
+    } else if (parent.account_type === 'family') {
+      const family = await db.query.families.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+      if (family) await db.insert(schema.familyMembers).values({ family_id: family.id, person_profile_id: memberProfile.id, member_role: 'adult' });
+    } else if (parent.account_type === 'institution') {
+      const institution = await db.query.institutions.findFirst({ where: (t, { eq }) => eq(t.account_id, parent.id) });
+      if (institution) await db.insert(schema.institutionMembers).values({ institution_id: institution.id, person_profile_id: memberProfile.id });
+    }
 
     await db.insert(schema.profileStatus).values({
       account_id: acc.id,
@@ -846,6 +881,120 @@ async function seedSubAccounts() {
       status: 'active',
     });
   }
+}
+
+async function seedMarketplaceProviders() {
+  const findAccount = async (username: string) => db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.username, username) });
+  const seedProvider = async (username: string, category: 'hospital' | 'school' | 'garage', details: { name: string; description: string; phone: string; region: string; district: string; ward: string }) => {
+    const account = await findAccount(username);
+    if (!account) throw new Error(`Demo provider account missing: ${username}`);
+    const [provider] = await db.insert(schema.serviceProviders).values({
+      account_id: account.id,
+      category,
+      display_name: details.name,
+      description: details.description,
+      contact_number: details.phone,
+      region: details.region,
+      district: details.district,
+      ward: details.ward,
+      accepting_requests: true,
+    }).onConflictDoUpdate({
+      target: schema.serviceProviders.account_id,
+      set: { category, display_name: details.name, description: details.description, contact_number: details.phone, region: details.region, district: details.district, ward: details.ward, accepting_requests: true, updated_at: new Date() },
+    }).returning();
+    return provider;
+  };
+  const addListing = async (providerId: string, data: {
+    title: string; description: string; delivery_mode: typeof schema.serviceDeliveryEnum.enumValues[number];
+    price_type: typeof schema.servicePriceTypeEnum.enumValues[number]; price_amount?: string; fields: schema.ServiceFormField[];
+  }) => db.insert(schema.providerServices).values({
+    provider_id: providerId,
+    title: data.title,
+    description: data.description,
+    delivery_mode: data.delivery_mode,
+    price_type: data.price_type,
+    price_amount: data.price_amount ?? null,
+    estimated_minutes: data.delivery_mode === 'on_demand' ? 45 : null,
+    form_fields: data.fields,
+    is_active: true,
+  }).returning().then(([service]) => service);
+
+  const hospital = await seedProvider('demo.hospital', 'hospital', {
+    name: 'Mwangaza Community Hospital', description: 'Outpatient care and urgent clinical assessment.', phone: '255222700101', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mikocheni',
+  });
+  const school = await seedProvider('demo.school', 'school', {
+    name: 'Green Valley Secondary School', description: 'Admissions, school visits, and student support enquiries.', phone: '255272500000', region: 'Arusha', district: 'Arusha City', ward: 'Sokoni',
+  });
+  const garage = await seedProvider('demo.business', 'garage', {
+    name: 'Moshi Roadside Rescue', description: 'Mobile repairs, towing, and emergency roadside help.', phone: '255222700000', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mikocheni',
+  });
+  const secondGarage = await seedProvider('demo.garage', 'garage', {
+    name: 'Haraka Auto Assistance', description: 'On-call mechanics and vehicle recovery across Kinondoni.', phone: '255755700222', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mwananyamala',
+  });
+
+  await addListing(hospital.id, {
+    title: 'Urgent clinic assessment', description: 'Request a same-day appointment or ask the care team to review your symptoms.', delivery_mode: 'appointment', price_type: 'quote_required',
+    fields: [
+      { key: 'reason', label: 'What do you need help with?', type: 'textarea', required: true },
+      { key: 'urgency', label: 'How soon do you need care?', type: 'select', required: true, options: ['Emergency', 'Today', 'This week', 'General enquiry'] },
+      { key: 'preferred_date', label: 'Preferred date', type: 'date' },
+    ],
+  });
+  await addListing(school.id, {
+    title: 'Admission enquiry', description: 'Ask about admissions, availability, fees, and a school visit.', delivery_mode: 'enrollment', price_type: 'free',
+    fields: [
+      { key: 'service_needed', label: 'What are you interested in?', type: 'select', required: true, options: ['Admission', 'School visit', 'Transport', 'Other'] },
+      { key: 'student_age', label: 'Student age', type: 'number' },
+      { key: 'message', label: 'Additional information', type: 'textarea' },
+    ],
+  });
+  const roadside = await addListing(garage.id, {
+    title: 'Emergency roadside repair', description: 'Request a mobile mechanic for a breakdown or vehicle fault.', delivery_mode: 'on_demand', price_type: 'quote_required',
+    fields: [
+      { key: 'vehicle', label: 'Vehicle make and model', type: 'text', required: true },
+      { key: 'registration', label: 'Registration number', type: 'text' },
+      { key: 'problem', label: 'Describe the breakdown', type: 'textarea', required: true },
+    ],
+  });
+  await addListing(garage.id, {
+    title: 'Vehicle towing and recovery', description: 'Arrange recovery when your vehicle cannot be safely driven.', delivery_mode: 'delivery', price_type: 'quote_required',
+    fields: [
+      { key: 'vehicle', label: 'Vehicle make and model', type: 'text', required: true },
+      { key: 'pickup', label: 'Pickup location', type: 'text', required: true },
+      { key: 'destination', label: 'Where should it be taken?', type: 'text' },
+    ],
+  });
+  const secondRoadside = await addListing(secondGarage.id, {
+    title: 'Mobile mechanic callout', description: 'A local mechanic can inspect and repair common roadside issues.', delivery_mode: 'on_demand', price_type: 'quote_required',
+    fields: [
+      { key: 'vehicle', label: 'Vehicle make and model', type: 'text', required: true },
+      { key: 'registration', label: 'Registration number', type: 'text' },
+      { key: 'problem', label: 'Describe the problem', type: 'textarea', required: true },
+    ],
+  });
+
+  const client = await findAccount('demo.individual');
+  if (client) {
+    const [request] = await db.insert(schema.serviceRequests).values({
+      requester_account_id: client.id,
+      provider_service_id: roadside.id,
+      sharing_scope: 'matching_providers',
+      status: 'offered',
+      summary: 'My car has broken down near Mikocheni',
+      answers: { vehicle: 'Toyota Corolla', registration: 'T 123 ABC', problem: 'Engine will not start after stopping at a junction.' },
+      form_snapshot: roadside.form_fields,
+      region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mikocheni',
+    }).returning();
+    await db.insert(schema.serviceOffers).values({
+      request_id: request.id,
+      provider_id: garage.id,
+      provider_service_id: roadside.id,
+      price_amount: '45000.00',
+      message: 'A mechanic is available in about 45 minutes. Quote includes the callout and initial inspection.',
+      estimated_minutes: 45,
+    });
+  }
+  console.log(`Added marketplace demo providers: ${hospital.display_name}, ${school.display_name}, ${garage.display_name}, ${secondGarage.display_name}`);
 }
 
 async function main() {
@@ -860,12 +1009,22 @@ async function main() {
     never_expires: true,
   });
 
+  const hospitalAccount = await upsertAccount('demo.hospital', {
+    account_type: 'business', role: 'admin', mobile: '255710000008', is_reseller: true, never_expires: true,
+  });
+  await addPerson(hospitalAccount.id, 'self', { first_name: 'Neema', last_name: 'Mashauri', gender: 'Female', birthdate: '1983-04-22', nida_number: '19830422005521112233', profile_code: hospitalAccount.profile_id });
+  const garageAccount = await upsertAccount('demo.garage', {
+    account_type: 'business', role: 'admin', mobile: '255710000009', is_reseller: true, never_expires: true,
+  });
+  await addPerson(garageAccount.id, 'self', { first_name: 'Baraka', last_name: 'Mushi', gender: 'Male', birthdate: '1987-08-17', nida_number: '19870817006621112233', profile_code: garageAccount.profile_id });
+
   await seedIndividual();
   await seedFamily();
   await seedSchool();
   await seedBusiness();
   await seedInstitution();
   await seedSubAccounts();
+  await seedMarketplaceProviders();
 
   const accounts = await db.query.accounts.findMany({
     where: (t, { inArray }) =>
@@ -875,6 +1034,8 @@ async function main() {
         'demo.family',
         'demo.school',
         'demo.business',
+        'demo.hospital',
+        'demo.garage',
         'demo.institution',
         'member.family',
         'member.school',

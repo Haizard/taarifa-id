@@ -17,26 +17,26 @@ const ACCOUNT_TYPES = [
 
 const SLIDES = [
   {
-    title: 'Your identity, always with you',
-    body: 'A digital ID card with a QR code that exposes only the information you choose.',
+    title: 'One place for your important information',
+    body: 'Keep health, school, vehicle, and personal details organized in a private client profile.',
   },
   {
-    title: 'Ready for emergencies',
-    body: 'Critical health details and emergency contacts instantly accessible when it matters most.',
+    title: 'Find help when you need it',
+    body: 'Send a request to a hospital, school, or nearby emergency garage and receive provider offers.',
   },
   {
-    title: 'Works for families & organizations',
-    body: 'Manage members as a family, school, business, or institution with full privacy controls.',
+    title: 'Share on your terms',
+    body: 'Choose one provider or share a request with matching nearby providers. Your saved profile stays private.',
   },
 ];
 
 export default function Home() {
-  const [counts, setCounts] = useState<Record<string, number> | null>(null);
+  const [counts, setCounts] = useState<{ providers: { hospitals: number; schools: number; garages: number }; active_services: number } | null>(null);
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
     api
-      .get<Record<string, number>>('/public/stats')
+      .get<{ providers: { hospitals: number; schools: number; garages: number }; active_services: number }>('/public/stats')
       .then((d) => setCounts(d))
       .catch(() => setCounts(null));
     const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4000);
@@ -56,7 +56,7 @@ export default function Home() {
           </div>
           <nav className="hidden items-center gap-6 text-[15px] text-ink-secondary sm:flex">
             <a href="#product" className="hover:text-ink-primary">Product</a>
-            <a href="#partners" className="hover:text-ink-primary">Partners</a>
+            <Link href="/services" className="hover:text-ink-primary">Services</Link>
             <a href="#counters" className="hover:text-ink-primary">Community</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -73,21 +73,21 @@ export default function Home() {
       {/* Hero */}
       <section className="mx-auto max-w-[1200px] px-4 pt-16 pb-12 text-center">
         <div className="glass inline-block rounded-full px-4 py-1.5 text-[13px] font-medium text-accent-primary">
-          Digital Identity & Emergency Profiles
+          A simpler way to find and provide help
         </div>
         <h1 className="mx-auto mt-6 max-w-3xl text-[44px] font-bold leading-tight tracking-[-0.5px] text-ink-primary sm:text-[56px]">
-          One ID card. <span className="bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent">Total control</span> over who sees your data.
+          Find the right help. <span className="bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent">Share only what you choose.</span>
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-[17px] text-ink-secondary">
-          TAARIFA_ID gives every person, family, school, business, and institution a unique Profile ID,
-          QR code, and printable ID card — with field-level privacy.
+          Connect with hospitals, schools, and emergency garages. Keep your information organized,
+          request services, compare provider offers, and choose what each provider receives.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Link href="/register" className="flex h-[50px] w-full items-center justify-center gap-2 rounded-button bg-accent-primary text-[17px] font-semibold text-white sm:w-auto sm:px-8">
-            Get your ID now <ArrowRight size={18} />
+          <Link href="/services" className="flex h-[50px] w-full items-center justify-center gap-2 rounded-button bg-accent-primary text-[17px] font-semibold text-white sm:w-auto sm:px-8">
+            Browse services <ArrowRight size={18} />
           </Link>
           <Link href="/register" className="glass flex h-[50px] w-full items-center justify-center rounded-button text-[17px] font-medium text-accent-primary sm:w-auto sm:px-8">
-            Register a Family / Organization
+            Join as a client or provider
           </Link>
         </div>
       </section>
@@ -128,29 +128,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Partners */}
+      {/* Service categories */}
       <section id="partners" className="mx-auto max-w-[1200px] px-4 py-10">
-        <div className="glass flex flex-wrap items-center justify-center gap-6 px-6 py-6">
-          {['Sunriver Systems', 'Beem SMS', 'Selcom', 'Azampay', 'NIDA'].map((p) => (
-            <span key={p} className="text-[15px] font-semibold text-ink-tertiary">{p}</span>
-          ))}
+        <h2 className="mb-5 text-center text-[25px] font-bold text-ink-primary">Start with the services people need most</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[
+            { title: 'Hospitals & clinics', body: 'Appointments, care requests, and urgent enquiries', icon: HeartPulse, category: 'hospital' },
+            { title: 'Schools', body: 'Admissions, visits, and student support', icon: GraduationCap, category: 'school' },
+            { title: 'Emergency garages', body: 'Roadside repairs, towing, and vehicle recovery', icon: Building2, category: 'garage' },
+          ].map((service) => <Link key={service.category} href={`/services?category=${service.category}`} className="glass btn-scale flex items-center gap-4 p-5"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary"><service.icon size={24} /></div><div><div className="font-semibold text-ink-primary">{service.title}</div><div className="mt-1 text-[13px] text-ink-secondary">{service.body}</div></div></Link>)}
         </div>
       </section>
 
       {/* Live counters */}
       <section id="counters" className="mx-auto max-w-[1200px] px-4 py-10">
-        <h2 className="mb-6 text-center text-[28px] font-bold text-ink-primary">Trusted across Tanzania</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          {ACCOUNT_TYPES.map((t) => (
-            <div key={t.key} className="glass p-5 text-center">
-              <div className="text-[30px] font-bold text-ink-primary">{counts?.[t.key] ?? '—'}</div>
-              <div className="mt-1 text-[13px] text-ink-secondary">{t.label}s</div>
+        <h2 className="mb-6 text-center text-[28px] font-bold text-ink-primary">A growing service network</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: 'Hospital & clinic providers', value: counts?.providers?.hospitals },
+            { label: 'School providers', value: counts?.providers?.schools },
+            { label: 'Emergency garages', value: counts?.providers?.garages },
+            { label: 'Published services', value: counts?.active_services },
+          ].map((item) => (
+            <div key={item.label} className="glass p-5 text-center">
+              <div className="text-[30px] font-bold text-ink-primary">{item.value ?? '—'}</div>
+              <div className="mt-1 text-[13px] text-ink-secondary">{item.label}</div>
             </div>
           ))}
         </div>
         <div className="mt-4 text-center text-[13px] text-ink-tertiary">
           <HeartPulse size={14} className="inline mr-1" />
-          Live counters update in real time from the platform.
+          Provider counts and available services update from the platform.
         </div>
       </section>
 

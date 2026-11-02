@@ -3,8 +3,8 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'TAARIFA ID — Digital Identity Platform',
-  description: 'Digital identity and emergency-profile platform for individuals, families, schools, businesses and institutions.',
+  title: 'TAARIFA ID — Services when you need them',
+  description: 'Connect clients with hospitals, schools and emergency garages through provider-defined services and private requests.',
   manifest: '/manifest.webmanifest',
   applicationName: 'TAARIFA ID',
   icons: {

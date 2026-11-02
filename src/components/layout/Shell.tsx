@@ -14,6 +14,12 @@ import {
   Bell,
   LogOut,
   Home,
+  Search,
+  ClipboardList,
+  Store,
+  Wrench,
+  BriefcaseBusiness,
+  Briefcase,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
@@ -22,6 +28,15 @@ import { ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
 const NAV: { href: string; label: string; icon: any; tone: AccentTone; show: (r: string) => boolean }[] = [
   { href: '/dashboard', label: 'Home', icon: Home, tone: 'blue', show: () => true },
   { href: '/dashboard/profile', label: 'Profile', icon: UserRound, tone: 'lavender', show: () => true },
+  { href: '/dashboard/services', label: 'Find services', icon: Search, tone: 'blue', show: () => true },
+  { href: '/dashboard/requests', label: 'My requests', icon: ClipboardList, tone: 'green', show: () => true },
+  { href: '/dashboard/provider', label: 'Provider setup', icon: Store, tone: 'yellow', show: (r: string) => r === 'admin' },
+  { href: '/dashboard/provider/requests', label: 'Service requests', icon: ClipboardList, tone: 'red', show: (r: string) => r === 'admin' },
+  { href: '/dashboard/provider/workforce', label: 'Work history', icon: UsersRound, tone: 'lavender', show: (r: string) => r === 'admin' },
+  { href: '/dashboard/work', label: 'My assigned work', icon: Wrench, tone: 'green', show: (r: string) => r === 'user' },
+  { href: '/dashboard/career', label: 'Career profile', icon: BriefcaseBusiness, tone: 'lavender', show: (r: string) => r === 'user' || r === 'individual' },
+  { href: '/dashboard/jobs', label: 'Jobs & opportunities', icon: Briefcase, tone: 'green', show: (r: string) => r === 'user' || r === 'individual' },
+  { href: '/dashboard/provider/jobs', label: 'Jobs & candidates', icon: Briefcase, tone: 'green', show: (r: string) => r === 'admin' },
   { href: '/dashboard/sub-accounts', label: 'Members', icon: UsersRound, tone: 'yellow', show: (r: string) => r !== 'individual' },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard, tone: 'green', show: () => true },
   { href: '/dashboard/printable', label: 'ID Card', icon: QrCode, tone: 'red', show: () => true },
@@ -31,8 +46,15 @@ const NAV: { href: string; label: string; icon: any; tone: AccentTone; show: (r:
 
 const MOBILE_TABS: { href: string; label: string; icon: any; tone: AccentTone }[] = [
   { href: '/dashboard', label: 'Home', icon: Home, tone: 'blue' },
-  { href: '/dashboard/profile', label: 'Profile', icon: UserRound, tone: 'lavender' },
-  { href: '/dashboard/payments', label: 'Pay', icon: CreditCard, tone: 'green' },
+  { href: '/dashboard/services', label: 'Services', icon: Search, tone: 'lavender' },
+  { href: '/dashboard/requests', label: 'Requests', icon: ClipboardList, tone: 'green' },
+  { href: '/dashboard/work', label: 'My work', icon: Wrench, tone: 'blue' },
+  { href: '/dashboard/career', label: 'Career', icon: BriefcaseBusiness, tone: 'lavender' },
+  { href: '/dashboard/jobs', label: 'Jobs', icon: Briefcase, tone: 'green' },
+  { href: '/dashboard/provider/jobs', label: 'Jobs', icon: Briefcase, tone: 'green' },
+  { href: '/dashboard/provider', label: 'Provider', icon: Store, tone: 'yellow' },
+  { href: '/dashboard/provider/requests', label: 'Inbox', icon: ClipboardList, tone: 'red' },
+  { href: '/dashboard/provider/workforce', label: 'Work history', icon: UsersRound, tone: 'blue' },
   { href: '/dashboard/printable', label: 'Card', icon: QrCode, tone: 'red' },
   { href: '/dashboard/settings', label: 'More', icon: Settings, tone: 'yellow' },
 ];
@@ -44,6 +66,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [showLogout, setShowLogout] = useState(false);
 
   const nav = NAV.filter((n) => n.show(user?.role ?? ''));
+  const mobilePaths = user?.role === 'admin'
+    ? ['/dashboard', '/dashboard/services', '/dashboard/provider', '/dashboard/provider/requests', '/dashboard/provider/jobs', '/dashboard/settings']
+    : user?.role === 'user'
+      ? ['/dashboard', '/dashboard/services', '/dashboard/requests', '/dashboard/work', '/dashboard/career', '/dashboard/jobs']
+      : ['/dashboard', '/dashboard/services', '/dashboard/requests', '/dashboard/career', '/dashboard/jobs', '/dashboard/settings'];
+  const mobileTabs = MOBILE_TABS.filter((tab) => mobilePaths.includes(tab.href));
 
   return (
     <div className="app-bg">
@@ -137,7 +165,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3 lg:hidden">
         <div className="glass-strong mx-auto flex max-w-md items-center justify-around px-2 py-2">
-          {MOBILE_TABS.map((tab) => (
+          {mobileTabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}

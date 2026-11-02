@@ -10,9 +10,10 @@ Generated from `TAARIFA_ID_FINAL.docx/pdf` (Phase One, 2025 spec).
 | [`03_UI_STRUCTURE.md`](./03_UI_STRUCTURE.md) | Sitemap, navigation model, responsive grid rules, component inventory |
 | [`04_UI_DESIGN_SYSTEM.md`](./04_UI_DESIGN_SYSTEM.md) | iOS-native glassmorphism design tokens, layout & component rules |
 | [`05_BUSINESS_RULES.md`](./05_BUSINESS_RULES.md) | Roles, permissions, expiry/payment logic, field-visibility rules |
+| [`06_PRODUCT_ROADMAP.md`](./06_PRODUCT_ROADMAP.md) | Service marketplace, organization workforce, worker reputation, and opt-in job discovery roadmap |
 
 **Read order for a new engineer:** MVP → Project Structure → Database → UI Structure →
-Design System → Business Rules (or Business Rules right after MVP if you're building the
+Design System → Business Rules → Product Roadmap (or Business Rules right after MVP if you're building the
 backend first).
 
 > Note: `TAARIFA_ID.txt` (uploaded alongside the PDF/DOCX) describes an unrelated tourism
