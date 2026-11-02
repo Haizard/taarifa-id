@@ -34,7 +34,7 @@ const pool = new Pool({
 
 const migrationsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../packages/db/migrations');
 try {
-  for (const filename of ['0001_service_marketplace.sql', '0002_service_reviews.sql', '0003_service_assignments.sql', '0004_service_worker_reviews.sql', '0005_provider_review_moderation.sql', '0006_career_portability.sql', '0007_job_discovery.sql']) {
+  for (const filename of ['0001_service_marketplace.sql', '0002_service_reviews.sql', '0003_service_assignments.sql', '0004_service_worker_reviews.sql', '0005_provider_review_moderation.sql', '0006_career_portability.sql', '0007_job_discovery.sql', '0008_job_messages.sql']) {
     await pool.query(await readFile(path.join(migrationsDirectory, filename), 'utf8'));
     console.log(`Applied ${filename}.`);
   }

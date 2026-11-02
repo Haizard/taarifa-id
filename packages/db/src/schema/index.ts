@@ -532,6 +532,15 @@ export const jobApplications = pgTable('job_applications', {
   ...timestamps,
 }, (t) => [uniqueIndex('job_applications_job_worker_unique').on(t.job_id, t.worker_account_id), index('job_applications_worker_idx').on(t.worker_account_id)]);
 
+export const jobMessages = pgTable('job_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  application_id: uuid('application_id').notNull().references(() => jobApplications.id),
+  sender_account_id: uuid('sender_account_id').notNull().references(() => accounts.id),
+  body: text('body').notNull(),
+  read_at: timestamp('read_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('job_messages_application_idx').on(t.application_id, t.created_at)]);
+
 export const careerHistory = pgTable('career_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),

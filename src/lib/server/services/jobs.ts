@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, forbidden, notFound } from '../errors';
@@ -213,4 +213,48 @@ export async function updateApplication(accountId: string, applicationId: string
     )).returning();
   if (!updated) throw notFound('Application not found');
   return updated;
+}
+
+async function applicationParticipant(accountId: string, applicationId: string) {
+  const rows = await db.select({ application: schema.jobApplications, job: schema.jobPostings })
+    .from(schema.jobApplications).innerJoin(schema.jobPostings, eq(schema.jobApplications.job_id, schema.jobPostings.id))
+    .where(eq(schema.jobApplications.id, applicationId)).limit(1);
+  const row = rows[0];
+  if (!row) throw notFound('Job application not found');
+  if (row.application.worker_account_id === accountId) {
+    await workerAccount(accountId);
+    return { ...row, participant: 'worker' as const };
+  }
+  if (row.job.organization_account_id === accountId) {
+    await employer(accountId);
+    return { ...row, participant: 'employer' as const };
+  }
+  throw forbidden('Only the applicant and hiring organization can access this conversation');
+}
+
+export async function getApplicationMessages(accountId: string, applicationId: string) {
+  const { participant } = await applicationParticipant(accountId, applicationId);
+  await db.update(schema.jobMessages).set({ read_at: new Date() })
+    .where(and(eq(schema.jobMessages.application_id, applicationId), isNull(schema.jobMessages.read_at), sql`${schema.jobMessages.sender_account_id} <> ${accountId}`));
+  const rows = await db.select({ message: schema.jobMessages })
+    .from(schema.jobMessages).where(eq(schema.jobMessages.application_id, applicationId))
+    .orderBy(desc(schema.jobMessages.created_at)).limit(100);
+  return rows.reverse().map(({ message }) => ({
+    id: message.id, body: message.body, created_at: message.created_at, read_at: message.read_at,
+    from_you: message.sender_account_id === accountId,
+    sender_role: message.sender_account_id === accountId ? participant : (participant === 'worker' ? 'employer' : 'worker'),
+  }));
+}
+
+export async function sendApplicationMessage(accountId: string, applicationId: string, dto: any) {
+  const { application } = await applicationParticipant(accountId, applicationId);
+  if (application.status === 'withdrawn') throw badRequest('This conversation is closed because the application was withdrawn');
+  const body = String(dto.body ?? '').trim();
+  if (!body || body.length > 5000) throw badRequest('Message must be between 1 and 5000 characters');
+  const since = new Date(Date.now() - 10 * 60 * 1000);
+  const [recent] = await db.select({ count: sql<number>`count(*)::int` }).from(schema.jobMessages)
+    .where(and(eq(schema.jobMessages.sender_account_id, accountId), gte(schema.jobMessages.created_at, since)));
+  if ((recent?.count ?? 0) >= 30) throw badRequest('Please wait before sending more messages');
+  const [message] = await db.insert(schema.jobMessages).values({ application_id: application.id, sender_account_id: accountId, body }).returning();
+  return { id: message.id, body: message.body, created_at: message.created_at, from_you: true };
 }

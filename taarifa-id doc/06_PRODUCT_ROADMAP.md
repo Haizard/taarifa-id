@@ -131,10 +131,11 @@ Implemented foundation:
 - Verified provider organizations can publish and close job openings with a role, category, location, employment type, description, and requirements.
 - Workers can browse open jobs, apply, choose which career profile fields and verified work records to share with each application, review application status, and withdraw.
 - Employers can search consenting adult candidates by category/location without seeing contact details or work history, and manage applicants through review, interview, offer, rejection, and hire states.
+- Applicants and the hiring organization can exchange application-scoped in-platform messages. Only those two participants can read or send; withdrawing an application closes the thread for new messages.
 
 Remaining work:
 
-- Add in-platform messaging, candidate invitations, application reporting/block controls, and stronger employer verification/moderation.
+- Add candidate invitations, application reporting/block controls, and stronger employer verification/moderation.
 - Add age-aware eligibility across all workforce and service reputation flows, not only job discovery.
 - Add explicit selected-employer visibility controls and independent profile export.
 - Add hiring outcome confirmation from both sides before creating verified employment history.
