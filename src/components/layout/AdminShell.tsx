@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, UserRound, CreditCard, BarChart3, LogOut, ShieldCheck, MessageSquareWarning, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, UserRound, CreditCard, BarChart3, LogOut, ShieldCheck, MessageSquareWarning, ShieldAlert, BadgeCheck } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { cn } from '@/lib/utils';
 import { ACCENT_CHIP, type AccentTone } from '@/components/ui/GlassCard';
@@ -15,6 +15,7 @@ const NAV: { href: string; label: string; icon: any; tone: AccentTone }[] = [
   { href: '/admin/reports', label: 'Reports', icon: BarChart3, tone: 'red' },
   { href: '/admin/worker-reviews', label: 'Worker review appeals', icon: MessageSquareWarning, tone: 'yellow' },
   { href: '/admin/job-safety', label: 'Job safety reports', icon: ShieldAlert, tone: 'red' },
+  { href: '/admin/provider-verification', label: 'Provider verification', icon: BadgeCheck, tone: 'green' },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

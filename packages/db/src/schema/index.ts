@@ -29,6 +29,7 @@ export const serviceAssignmentStatusEnum = pgEnum('service_assignment_status', [
 export const serviceAssignmentEventTypeEnum = pgEnum('service_assignment_event_type', ['assigned', 'released']);
 export const serviceWorkerReviewStatusEnum = pgEnum('service_worker_review_status', ['active', 'disputed', 'upheld', 'removed']);
 export const careerVerificationStatusEnum = pgEnum('career_verification_status', ['pending', 'verified', 'disputed', 'rejected']);
+export const providerVerificationStatusEnum = pgEnum('provider_verification_status', ['unverified', 'pending', 'verified', 'rejected']);
 
 export type ServiceFormField = {
   key: string;
@@ -372,8 +373,25 @@ export const serviceProviders = pgTable('service_providers', {
   district: varchar('district', { length: 100 }),
   ward: varchar('ward', { length: 100 }),
   accepting_requests: boolean('accepting_requests').notNull().default(true),
+  verification_status: providerVerificationStatusEnum('verification_status').notNull().default('unverified'),
+  verified_by_account_id: uuid('verified_by_account_id').references(() => accounts.id),
+  verified_at: timestamp('verified_at', { withTimezone: true }),
   ...timestamps,
 }, (t) => [index('service_providers_category_idx').on(t.category)]);
+
+export const providerVerificationRequests = pgTable('provider_verification_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider_id: uuid('provider_id').notNull().references(() => serviceProviders.id),
+  submitted_by_account_id: uuid('submitted_by_account_id').notNull().references(() => accounts.id),
+  legal_name: varchar('legal_name', { length: 200 }).notNull(),
+  registration_reference: varchar('registration_reference', { length: 120 }).notNull(),
+  evidence_notes: text('evidence_notes'),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  review_note: text('review_note'),
+  reviewed_by_account_id: uuid('reviewed_by_account_id').references(() => accounts.id),
+  reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [index('provider_verification_requests_provider_idx').on(t.provider_id), index('provider_verification_requests_status_idx').on(t.status)]);
 
 export const providerServices = pgTable('provider_services', {
   id: uuid('id').primaryKey().defaultRandom(),

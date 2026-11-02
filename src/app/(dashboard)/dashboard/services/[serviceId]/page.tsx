@@ -13,7 +13,7 @@ type Field = { key: string; label: string; type: 'text' | 'textarea' | 'number' 
 type Service = {
   id: string; title: string; description: string | null; delivery_mode: string; price_type: string;
   price_amount: string | null; form_fields: Field[];
-  provider: { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; description: string | null; region: string | null; district: string | null; ward: string | null; contact_number: string | null };
+  provider: { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; verification_status: string; description: string | null; region: string | null; district: string | null; ward: string | null; contact_number: string | null };
 };
 
 export default function ServiceRequestPage() {
@@ -43,8 +43,8 @@ export default function ServiceRequestPage() {
       <LargeTitleHeader title={service.title} subtitle={service.provider.display_name} />
       <div className="glass mb-6 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[14px] text-ink-secondary"><Store size={18} className="text-accent-primary" />{service.provider.display_name}</div>
-          <Badge tone={service.provider.category === 'hospital' ? 'red' : service.provider.category === 'school' ? 'yellow' : 'green'}>{service.provider.category}</Badge>
+          <div><div className="flex items-center gap-2 text-[14px] text-ink-secondary"><Store size={18} className="text-accent-primary" />{service.provider.display_name}</div><div className="mt-1"><Badge tone={service.provider.verification_status === 'verified' ? 'green' : 'grey'}>{service.provider.verification_status === 'verified' ? 'Verified organization' : 'Not verified by platform'}</Badge></div></div>
+          <div className="flex flex-col items-end gap-2"><Badge tone={service.provider.category === 'hospital' ? 'red' : service.provider.category === 'school' ? 'yellow' : 'green'}>{service.provider.category}</Badge><span className="text-[10px] text-ink-tertiary">Check provider status before sharing sensitive information.</span></div>
         </div>
         {service.description && <p className="mt-3 text-[14px] leading-6 text-ink-secondary">{service.description}</p>}
         <div className="mt-3 flex flex-wrap gap-3 text-[12px] text-ink-tertiary">

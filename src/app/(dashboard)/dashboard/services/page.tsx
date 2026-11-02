@@ -12,7 +12,7 @@ type Category = 'hospital' | 'school' | 'garage';
 type Service = {
   id: string; title: string; description: string | null; delivery_mode: string;
   price_type: string; price_amount: string | null;
-  provider: { id: string; category: Category; display_name: string; region: string | null; district: string | null; rating?: number; review_count?: number };
+  provider: { id: string; category: Category; display_name: string; verification_status: string; region: string | null; district: string | null; rating?: number; review_count?: number };
 };
 
 const categories: { id: 'all' | Category; label: string; icon: any; tone: AccentTone }[] = [
@@ -75,6 +75,7 @@ export default function ServicesPage() {
                 <div className="min-w-0">
                   <div className="text-[17px] font-semibold text-ink-primary">{service.title}</div>
                   <div className="mt-1 text-[14px] font-medium text-accent-primary">{service.provider.display_name}</div>
+                  <div className="mt-1"><Badge tone={service.provider.verification_status === 'verified' ? 'green' : 'grey'}>{service.provider.verification_status === 'verified' ? 'Verified organization' : 'Not verified by platform'}</Badge></div>
                 </div>
                 <Badge tone={service.provider.category === 'hospital' ? 'red' : service.provider.category === 'school' ? 'yellow' : 'green'}>{service.provider.category}</Badge>
               </div>

@@ -128,7 +128,7 @@ Remaining work:
 Implemented foundation:
 
 - Job-seeking visibility is off by default. Adult individual and employee accounts can opt in and choose job categories and locations; their current organization is excluded from candidate search.
-- Provider organizations with an active provider profile can publish and close job openings with a role, category, location, employment type, description, and requirements. A platform-level employer verification program remains future work.
+- Organizations submit a legal name and registration/licence reference for platform review. System admins approve or reject submissions with an audit note; only approved providers can post jobs, invite candidates, or view applicant career details.
 - Workers can browse open jobs, apply, choose which career profile fields and verified work records to share with each application, review application status, and withdraw.
 - Employers can search consenting adult candidates by category/location without seeing contact details or work history, and manage applicants through review, interview, offer, rejection, and hire states.
 - Applicants and the hiring organization can exchange application-scoped in-platform messages. Only those two participants can read or send; withdrawing an application closes the thread for new messages.
@@ -138,7 +138,7 @@ Implemented foundation:
 
 Remaining work:
 
-- Add stronger employer verification/moderation.
+- Add document uploads, organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
 - Add age-aware eligibility across all workforce and service reputation flows, not only job discovery.
 - Add explicit selected-employer visibility controls and independent profile export.
 - Add hiring outcome confirmation from both sides before creating verified employment history.

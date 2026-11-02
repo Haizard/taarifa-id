@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Building2, CirclePlus, ClipboardList, GraduationCap, Siren, Store, UsersRound } from 'lucide-react';
+import { BadgeCheck, Building2, CirclePlus, ClipboardList, GraduationCap, Siren, Store, UsersRound } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components/ui/GlassCard';
 
 type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
-type Provider = { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; description: string | null; contact_number: string | null; region: string | null; district: string | null; ward: string | null; accepting_requests: boolean; services: any[]; members: Array<{ id: string; display_name: string; member_type: string; rating: number | null; review_count: number }> };
+type Provider = { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; verification_status: string; description: string | null; contact_number: string | null; region: string | null; district: string | null; ward: string | null; accepting_requests: boolean; services: any[]; members: Array<{ id: string; display_name: string; member_type: string; rating: number | null; review_count: number }> };
+type Verification = { status: string; verified_at: string | null; request: { legal_name: string; registration_reference: string; evidence_notes: string | null; status: string; review_note: string | null } | null };
 
 const seedFields: Record<string, Field[]> = {
   hospital: [
@@ -34,9 +35,13 @@ export default function ProviderPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['marketplace-provider', user?.sub], queryFn: () => api.get<Provider | null>('/marketplace/provider'), enabled: !!user && user.role === 'admin' });
+  const verificationQuery = useQuery({ queryKey: ['provider-verification'], queryFn: () => api.get<Verification>('/marketplace/provider/verification'), enabled: !!data });
   const [profile, setProfile] = useState({ category: 'hospital', display_name: '', description: '', contact_number: '', region: '', district: '', ward: '' });
   const [service, setService] = useState({ title: '', description: '', delivery_mode: 'on_demand', price_type: 'quote_required', price_amount: '', estimated_minutes: '' });
   const [fields, setFields] = useState<Field[]>(seedFields.hospital);
+  const [legalName, setLegalName] = useState('');
+  const [registrationReference, setRegistrationReference] = useState('');
+  const [evidenceNotes, setEvidenceNotes] = useState('');
 
   useEffect(() => {
     if (data) setProfile({ category: data.category, display_name: data.display_name, description: data.description ?? '', contact_number: data.contact_number ?? '', region: data.region ?? '', district: data.district ?? '', ward: data.ward ?? '' });
@@ -57,8 +62,13 @@ export default function ProviderPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); qc.invalidateQueries({ queryKey: ['marketplace-services'] }); },
     onError: (e: any) => toast.error(e.message),
   });
+  const requestVerification = useMutation({
+    mutationFn: () => api.post('/marketplace/provider/verification', { legal_name: legalName, registration_reference: registrationReference, evidence_notes: evidenceNotes }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Verification request submitted'); },
+    onError: (e: any) => toast.error(e.message),
+  });
 
-  if (user?.role !== 'admin' || !['business', 'school'].includes(user.account_type)) {
+  if (user?.role !== 'admin' || !['business', 'school', 'institution'].includes(user.account_type)) {
     return <div className="glass p-6 text-center text-ink-secondary">Provider tools are available to business and school accounts.</div>;
   }
 
@@ -83,6 +93,19 @@ export default function ProviderPage() {
       </form>
 
       {!!data && <>
+        <SectionLabel tone="green">Organization verification</SectionLabel>
+        <section className="glass mb-5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold text-ink-primary">Provider verification status</div><p className="mt-1 text-[12px] text-ink-secondary">Verified organizations can publish jobs, invite opted-in workers, and review applicant career details.</p></div><Badge tone={verificationQuery.data?.status === 'verified' ? 'green' : verificationQuery.data?.status === 'pending' ? 'yellow' : verificationQuery.data?.status === 'rejected' ? 'red' : 'grey'}>{verificationQuery.data?.status ?? 'unverified'}</Badge></div>
+          {verificationQuery.data?.verified_at && <p className="mt-2 text-[11px] text-ink-tertiary">Verified {new Date(verificationQuery.data.verified_at).toLocaleDateString()}</p>}
+          {verificationQuery.data?.request?.review_note && <p className="mt-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary">Review note: {verificationQuery.data.request.review_note}</p>}
+          {verificationQuery.data?.status !== 'verified' && verificationQuery.data?.status !== 'pending' && <form onSubmit={(e) => { e.preventDefault(); requestVerification.mutate(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-[12px] font-medium text-ink-secondary">Registered organization name<input required minLength={3} maxLength={200} value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={data.display_name} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
+            <label className="text-[12px] font-medium text-ink-secondary">Registration or licence reference<input required minLength={3} maxLength={120} value={registrationReference} onChange={(e) => setRegistrationReference(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
+            <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Evidence notes (no files yet)<textarea maxLength={3000} value={evidenceNotes} onChange={(e) => setEvidenceNotes(e.target.value)} placeholder="Describe the registration document or licence and how it can be checked." className="mt-1 min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /></label>
+            <div className="sm:col-span-2"><GlassButton type="submit" disabled={requestVerification.isPending}>{requestVerification.isPending ? 'Submitting…' : 'Request provider verification'}</GlassButton></div>
+          </form>}
+          {verificationQuery.data?.status === 'pending' && <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary"><BadgeCheck size={16} />Your registration details are awaiting platform review. Job posting and candidate search stay locked until approval.</div>}
+        </section>
         <SectionLabel tone="green">Employee feedback</SectionLabel>
         {data.members?.length ? <div className="mb-5 space-y-2">{data.members.map((member) => <div key={member.id} className="glass flex flex-wrap items-center justify-between gap-2 p-4"><div className="flex items-center gap-2"><UsersRound size={18} className="text-accent-primary" /><div><div className="font-semibold text-ink-primary">{member.display_name}</div><div className="text-[12px] capitalize text-ink-tertiary">{member.member_type} · private organization feedback</div></div></div><div className="text-right text-[13px] text-ink-secondary">{member.review_count ? <><span className="font-semibold text-ink-primary">★ {member.rating}</span><span className="ml-1">({member.review_count} completed job{member.review_count === 1 ? '' : 's'})</span></> : 'No completed job reviews yet'}</div></div>)}<p className="text-[11px] text-ink-tertiary">Worker ratings are private to your organization and the employee. They are not shown in the public service directory.</p></div> : <div className="mb-5 rounded-xl bg-accent-primary/5 p-3 text-[13px] text-ink-secondary">Create employee member accounts to assign work and collect verified feedback.</div>}
         <SectionLabel tone="lavender">Publish a service</SectionLabel>

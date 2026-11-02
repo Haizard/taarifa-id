@@ -12,7 +12,7 @@ const fieldTypes = ['text', 'textarea', 'number', 'date', 'select', 'checkbox'];
 async function requireProviderAccount(accountId: string) {
   const account = await db.query.accounts.findFirst({ where: (t, { eq }) => eq(t.id, accountId) });
   if (!account) throw notFound('Account not found');
-  if (account.role !== 'admin' || !['business', 'school'].includes(account.account_type)) {
+  if (account.role !== 'admin' || !['business', 'school', 'institution'].includes(account.account_type)) {
     throw forbidden('Only business or school provider accounts can manage services');
   }
   return account;
@@ -183,6 +183,7 @@ export async function listServices(category?: string, search?: string) {
         id: provider.id,
         category: provider.category,
         display_name: provider.display_name,
+        verification_status: provider.verification_status,
         description: provider.description,
         region: provider.region,
         district: provider.district,
@@ -211,6 +212,7 @@ export async function getService(serviceId: string) {
       id: row.provider.id,
       category: row.provider.category,
       display_name: row.provider.display_name,
+      verification_status: row.provider.verification_status,
       description: row.provider.description,
       region: row.provider.region,
       district: row.provider.district,
@@ -237,7 +239,7 @@ export async function saveProvider(accountId: string, dto: any) {
   const category = String(dto.category ?? '') as Category;
   if (!categories.includes(category)) throw badRequest('Choose hospital, school, or garage');
   if (account.account_type === 'school' && category !== 'school') throw badRequest('School accounts can only offer school services');
-  if (account.account_type === 'business' && category === 'school') throw badRequest('Use a school account for school services');
+  if (['business', 'institution'].includes(account.account_type) && category === 'school') throw badRequest('Use a school account for school services');
   const display_name = String(dto.display_name ?? '').trim().slice(0, 200);
   if (!display_name) throw badRequest('Provider name is required');
   const existing = await getProvider(accountId);
