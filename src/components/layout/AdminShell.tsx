@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; icon: any; tone: AccentTone }[] = [
   { href: '/admin/payments', label: 'Payments', icon: CreditCard, tone: 'green' },
   { href: '/admin/reports', label: 'Reports', icon: BarChart3, tone: 'red' },
   { href: '/admin/worker-reviews', label: 'Worker review appeals', icon: MessageSquareWarning, tone: 'yellow' },
+  { href: '/admin/service-complaints', label: 'Service complaints', icon: MessageSquareWarning, tone: 'red' },
   { href: '/admin/job-safety', label: 'Job safety reports', icon: ShieldAlert, tone: 'red' },
   { href: '/admin/provider-verification', label: 'Provider verification', icon: BadgeCheck, tone: 'green' },
 ];

@@ -18,12 +18,14 @@ type ServiceRequest = {
   offers: Array<{ id: string; status: string; price_amount: string | null; message: string | null }>;
   review: { id: string; rating?: number; review?: string | null; provider_response?: string | null; moderation_status: string } | null;
 };
+type Complaint = { id: string; subject_account_id: string; subject_type: string; request_summary: string | null; service_title: string; category: string; description: string; subject_response: string | null; status: string; created_at: string };
 
 export default function ProviderRequestsPage() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const { data: provider } = useQuery({ queryKey: ['marketplace-provider', user?.sub], queryFn: () => api.get<Provider | null>('/marketplace/provider'), enabled: !!user && user.role === 'admin' });
   const { data: requests, isLoading } = useQuery({ queryKey: ['marketplace-provider-requests', user?.sub], queryFn: () => api.get<ServiceRequest[]>('/marketplace/provider/requests'), enabled: !!user && user.role === 'admin' });
+  const complaintsQuery = useQuery({ queryKey: ['marketplace-complaints', user?.sub], queryFn: () => api.get<Complaint[]>('/marketplace/complaints'), enabled: !!user && user.role === 'admin' });
   const [offerDrafts, setOfferDrafts] = useState<Record<string, { service_id: string; price_amount: string; message: string; estimated_minutes: string }>>({});
   const [workerDrafts, setWorkerDrafts] = useState<Record<string, string>>({});
   const [reviewResponses, setReviewResponses] = useState<Record<string, { response: string; dispute: boolean }>>({});
@@ -47,6 +49,12 @@ export default function ProviderRequestsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-provider-requests'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Your response was shared with the client'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const complaintResponses = useMutation({
+    mutationFn: ({ id, response }: { id: string; response: string }) => api.post(`/marketplace/complaints/${id}/response`, { response }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketplace-complaints'] }); toast.success('Complaint response sent to the client'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const [complaintDrafts, setComplaintDrafts] = useState<Record<string, string>>({});
 
   const activeServices = provider?.services?.filter((s) => s.is_active) ?? [];
   const draftFor = (requestId: string) => offerDrafts[requestId] ?? { service_id: activeServices[0]?.id ?? '', price_amount: '', message: '', estimated_minutes: '' };
@@ -99,6 +107,7 @@ export default function ProviderRequestsPage() {
           {request.review && <section className="mt-4 rounded-xl border border-glass-border bg-white/40 p-4">{request.review.moderation_status === 'removed' ? <p className="text-[13px] text-ink-tertiary">Client feedback was removed after platform review.</p> : <><div className="font-semibold text-ink-primary">Client review · {'★'.repeat(request.review.rating ?? 0)}{'☆'.repeat(5 - (request.review.rating ?? 0))}</div>{request.review.review && <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{request.review.review}</p>}{request.review.provider_response && <p className="mt-2 text-[12px] text-ink-tertiary">Your response: {request.review.provider_response}</p>}<form onSubmit={(e) => { e.preventDefault(); const draft = reviewResponses[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }; respondToReview.mutate({ id: request.review!.id, ...draft }); }} className="mt-3 space-y-2"><label className="block text-[12px] font-medium text-ink-secondary">Your response<textarea required maxLength={2000} value={reviewResponses[request.review.id]?.response ?? request.review.provider_response ?? ''} onChange={(e) => setReviewResponses((all) => ({ ...all, [request.review!.id]: { ...(all[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }), response: e.target.value } }))} className="mt-1 min-h-16 w-full rounded-lg border border-glass-border bg-white/70 px-3 py-2 text-[13px] text-ink-primary" /></label><label className="flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={reviewResponses[request.review.id]?.dispute ?? request.review.moderation_status === 'disputed'} onChange={(e) => setReviewResponses((all) => ({ ...all, [request.review!.id]: { ...(all[request.review!.id] ?? { response: request.review!.provider_response ?? '', dispute: request.review!.moderation_status === 'disputed' }), dispute: e.target.checked } }))} />Request a platform review if this feedback is inaccurate or abusive</label><button type="submit" disabled={respondToReview.isPending} className="rounded-full bg-accent-primary px-4 py-2 text-[13px] font-semibold text-white">{respondToReview.isPending ? 'Saving…' : request.review.provider_response ? 'Update response' : 'Respond to review'}</button></form></>}</section>}
         </article>;
       })}</div>}
+      {(complaintsQuery.data ?? []).some((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)) && <section className="mt-8"><SectionLabel tone="red">Service complaint cases</SectionLabel><div className="space-y-3">{(complaintsQuery.data ?? []).filter((item) => item.subject_account_id === user?.sub && ['open', 'in_review'].includes(item.status)).map((item) => <article key={item.id} className="glass p-4"><div className="font-semibold text-ink-primary">{item.service_title} · {item.category.replaceAll('_', ' ')}</div>{item.request_summary && <div className="mt-1 text-[12px] text-ink-tertiary">{item.request_summary}</div>}<p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-secondary">{item.description}</p><form onSubmit={(event) => { event.preventDefault(); complaintResponses.mutate({ id: item.id, response: complaintDrafts[item.id] ?? item.subject_response ?? '' }); }} className="mt-3 space-y-2"><textarea required minLength={5} maxLength={3000} value={complaintDrafts[item.id] ?? item.subject_response ?? ''} onChange={(event) => setComplaintDrafts((all) => ({ ...all, [item.id]: event.target.value }))} placeholder="Respond with your account of the service and next steps." className="min-h-16 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /><button disabled={complaintResponses.isPending} className="rounded-full bg-accent-primary/10 px-4 py-2 text-[12px] font-semibold text-accent-primary">{complaintResponses.isPending ? 'Sending…' : 'Send complaint response'}</button></form></article>)}</div></section>}
     </div>
   );
 }

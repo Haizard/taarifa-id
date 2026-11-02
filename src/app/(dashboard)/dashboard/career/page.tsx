@@ -9,9 +9,9 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components/ui/GlassCard';
 
-type WorkRecord = { id: string; organization_name: string; position: string; started_on: string; ended_on: string | null; verification_status: string; worker_note: string | null; moderation_note: string | null };
+type WorkRecord = { id: string; organization_name: string; position: string; started_on: string; ended_on: string | null; verification_status: string; worker_note: string | null; moderation_note: string | null; correction_history?: { id: string; event_type: string; note: string | null; created_at: string }[] };
 type Share = { id: string; token: string; purpose: string; expires_at: string; revoked_at: string | null; history_record_ids: string[] };
-type CareerData = { profile: { headline: string | null; summary: string | null; skills: string[] }; history: WorkRecord[]; shares: Share[] };
+type CareerData = { profile: { headline: string | null; summary: string | null; skills: string[]; qualifications?: string[]; availability?: string | null; preferred_employment_types?: string[]; professional_references?: { name: string; role: string; organization: string; contact: string }[] }; history: WorkRecord[]; shares: Share[] };
 
 const statusTone = (status: string) => status === 'verified' ? 'green' : status === 'disputed' ? 'orange' : status === 'rejected' ? 'grey' : 'blue';
 
@@ -23,6 +23,12 @@ export default function CareerPage() {
   const [headline, setHeadline] = useState('');
   const [summary, setSummary] = useState('');
   const [skillsText, setSkillsText] = useState('');
+  const [qualificationsText, setQualificationsText] = useState('');
+  const [availability, setAvailability] = useState('');
+  const [employmentTypesText, setEmploymentTypesText] = useState('');
+  const [referencesText, setReferencesText] = useState('');
+  const [referencesConsent, setReferencesConsent] = useState(false);
+  const [includeExtendedProfile, setIncludeExtendedProfile] = useState(false);
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
   const [purpose, setPurpose] = useState('Job application');
   const [shareDays, setShareDays] = useState('14');
@@ -33,11 +39,15 @@ export default function CareerPage() {
     setHeadline(data.profile.headline ?? '');
     setSummary(data.profile.summary ?? '');
     setSkillsText((data.profile.skills ?? []).join(', '));
+    setQualificationsText((data.profile.qualifications ?? []).join('\n'));
+    setAvailability(data.profile.availability ?? '');
+    setEmploymentTypesText((data.profile.preferred_employment_types ?? []).join(', '));
+    setReferencesText((data.profile.professional_references ?? []).map((r) => [r.name, r.role, r.organization, r.contact].join(' | ')).join('\n'));
   }, [data?.profile]);
 
   const verifiedRecords = useMemo(() => data?.history.filter((item) => item.verification_status === 'verified') ?? [], [data?.history]);
   const save = useMutation({
-    mutationFn: () => api.put('/career/me', { headline, summary, skills: skillsText.split(',').map((s) => s.trim()).filter(Boolean) }),
+    mutationFn: () => api.put('/career/me', { headline, summary, skills: skillsText.split(',').map((s) => s.trim()).filter(Boolean), qualifications: qualificationsText.split('\n').map((s) => s.trim()).filter(Boolean), availability, preferred_employment_types: employmentTypesText.split(',').map((s) => s.trim()).filter(Boolean), professional_references: referencesText.split('\n').map((line) => { const [name, role = '', organization = '', contact = ''] = line.split('|').map((s) => s.trim()); return { name, role, organization, contact, permission_confirmed: referencesConsent }; }).filter((r) => r.name || r.contact) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Career profile saved'); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -46,8 +56,13 @@ export default function CareerPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Employment record updated'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const correctRecord = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) => api.post(`/career/records/${id}/correction`, { note }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); toast.success('Correction request sent to the organization'); },
+    onError: (e: any) => toast.error(e.message),
+  });
   const makeShare = useMutation({
-    mutationFn: () => api.post<{ token: string }>('/career/share', { include_profile: true, history_record_ids: selectedRecords, purpose, duration_days: Number(shareDays) }),
+    mutationFn: () => api.post<{ token: string }>('/career/share', { include_profile: true, include_extended_profile: includeExtendedProfile, history_record_ids: selectedRecords, purpose, duration_days: Number(shareDays) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['career-me'] }); setSelectedRecords([]); toast.success('Temporary career link created'); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -82,6 +97,11 @@ export default function CareerPage() {
       <label className="block text-[13px] font-medium text-ink-secondary">Professional headline<input maxLength={200} value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Automotive technician · 5 years' experience" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[15px] text-ink-primary" /></label>
       <label className="block text-[13px] font-medium text-ink-secondary">Short professional summary<textarea maxLength={3000} value={summary} onChange={(e) => setSummary(e.target.value)} className="mt-1 min-h-24 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[14px] text-ink-primary" /></label>
       <label className="block text-[13px] font-medium text-ink-secondary">Skills, separated by commas<input value={skillsText} onChange={(e) => setSkillsText(e.target.value)} placeholder="Vehicle diagnostics, customer service, towing" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label>
+      <label className="block text-[13px] font-medium text-ink-secondary">Qualifications or certifications, one per line<textarea value={qualificationsText} onChange={(e) => setQualificationsText(e.target.value)} placeholder="First aid certificate\nAutomotive diagnostics diploma" className="mt-1 min-h-20 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[14px] text-ink-primary" /></label>
+      <label className="block text-[13px] font-medium text-ink-secondary">Availability<input maxLength={80} value={availability} onChange={(e) => setAvailability(e.target.value)} placeholder="Available weekdays · 2 weeks notice" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label>
+      <label className="block text-[13px] font-medium text-ink-secondary">Preferred employment types<input value={employmentTypesText} onChange={(e) => setEmploymentTypesText(e.target.value)} placeholder="Full-time, contract" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-3 text-[14px] text-ink-primary" /></label>
+      <label className="block text-[13px] font-medium text-ink-secondary">Professional references (one per line: Name | Role | Organization | Contact)<textarea value={referencesText} onChange={(e) => setReferencesText(e.target.value)} placeholder="Asha M. | Supervisor | ABC Garage | +255…" className="mt-1 min-h-20 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[14px] text-ink-primary" /></label>
+      <label className="flex items-start gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={referencesConsent} onChange={(e) => setReferencesConsent(e.target.checked)} className="mt-0.5" />I have permission from each listed reference to store and share their contact details.</label>
       <GlassButton type="submit" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save career profile'}</GlassButton>
     </form>
 
@@ -91,6 +111,8 @@ export default function CareerPage() {
       {record.verification_status === 'pending' && <div className="mt-3 space-y-2"><textarea maxLength={2000} value={responseNotes[record.id] ?? ''} onChange={(e) => setResponseNotes((all) => ({ ...all, [record.id]: e.target.value }))} placeholder="If disputing, describe the correction you need." className="min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /><div className="flex flex-wrap gap-2"><button onClick={() => answerRecord.mutate({ id: record.id, action: 'acknowledge' })} disabled={answerRecord.isPending} className="rounded-full bg-accent-success/15 px-4 py-2 text-[13px] font-semibold text-accent-success">Confirm this record</button><button onClick={() => answerRecord.mutate({ id: record.id, action: 'dispute' })} disabled={answerRecord.isPending || !(responseNotes[record.id] ?? '').trim()} className="rounded-full bg-accent-warning/15 px-4 py-2 text-[13px] font-semibold text-accent-warning disabled:opacity-40">Dispute record</button></div></div>}
       {record.worker_note && <p className="mt-2 text-[12px] text-ink-tertiary">Your note: {record.worker_note}</p>}
       {record.moderation_note && <p className="mt-2 text-[12px] text-ink-tertiary">Organization response: {record.moderation_note}</p>}
+      {record.verification_status === 'verified' && <div className="mt-3 space-y-2"><textarea maxLength={2000} value={responseNotes[`correction-${record.id}`] ?? ''} onChange={(e) => setResponseNotes((all) => ({ ...all, [`correction-${record.id}`]: e.target.value }))} placeholder="Request a correction to this verified record" className="min-h-14 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /><button onClick={() => correctRecord.mutate({ id: record.id, note: responseNotes[`correction-${record.id}`] ?? '' })} disabled={correctRecord.isPending || !(responseNotes[`correction-${record.id}`] ?? '').trim()} className="rounded-full bg-accent-warning/15 px-4 py-2 text-[13px] font-semibold text-accent-warning disabled:opacity-40">Request correction</button></div>}
+      {!!record.correction_history?.length && <details className="mt-3 text-[12px] text-ink-secondary"><summary className="cursor-pointer font-medium">Correction and verification history</summary><ul className="mt-2 space-y-1">{record.correction_history.map((event) => <li key={event.id}>{new Date(event.created_at).toLocaleString()} · {event.event_type.replaceAll('_', ' ')}{event.note ? ` — ${event.note}` : ''}</li>)}</ul></details>}
     </article>)}</div>}
 
     <SectionLabel tone="blue">Share a temporary career link</SectionLabel>
@@ -98,6 +120,7 @@ export default function CareerPage() {
       {verifiedRecords.length ? <div className="space-y-2"><div className="text-[13px] font-semibold text-ink-primary">Choose verified work records</div>{verifiedRecords.map((record) => <label key={record.id} className="flex items-center gap-2 rounded-xl bg-white/50 p-3 text-[13px] text-ink-secondary"><input type="checkbox" checked={selectedRecords.includes(record.id)} onChange={(e) => setSelectedRecords((all) => e.target.checked ? [...all, record.id] : all.filter((id) => id !== record.id))} />{record.position} · {record.organization_name}</label>)}</div> : <div className="text-[13px] text-ink-secondary">No verified employment records yet. You can still share your career profile.</div>}
       <label className="block text-[13px] font-medium text-ink-secondary">Purpose<input required maxLength={240} value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Job application to ABC Garage" className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
       <label className="block text-[13px] font-medium text-ink-secondary">Link duration<select value={shareDays} onChange={(e) => setShareDays(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary"><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
+      <label className="flex items-start gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={includeExtendedProfile} onChange={(e) => setIncludeExtendedProfile(e.target.checked)} className="mt-0.5" />Include qualifications, availability, employment preferences, and references in this share link. These stay private unless selected.</label>
       <GlassButton type="button" disabled={makeShare.isPending || !purpose.trim()} onClick={() => makeShare.mutate()}><span className="flex items-center gap-2"><Link2 size={16} />{makeShare.isPending ? 'Creating…' : 'Create private link'}</span></GlassButton>
       {(data?.shares ?? []).filter((share) => !share.revoked_at && new Date(share.expires_at) > new Date()).map((share) => <div key={share.id} className="rounded-xl border border-glass-border bg-white/50 p-3"><div className="font-medium text-ink-primary">{share.purpose}</div><a className="mt-1 block break-all text-[12px] text-accent-primary" href={`/career/share/${share.token}`} target="_blank" rel="noreferrer">{typeof window !== 'undefined' ? `${window.location.origin}/career/share/${share.token}` : `/career/share/${share.token}`}</a><div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-ink-tertiary"><span>Expires {new Date(share.expires_at).toLocaleString()}</span><button onClick={() => revokeShare.mutate(share.id)} disabled={revokeShare.isPending} className="font-semibold text-accent-danger">Revoke</button></div></div>)}
     </div>

@@ -785,6 +785,120 @@ export async function resolveWorkerReviewDispute(adminAccountId: string, reviewI
   return { id: reviewId, moderation_status: outcome };
 }
 
+async function logComplaintEvent(tx: any, caseId: string, actorId: string, eventType: string, note?: string | null) {
+  await tx.insert(schema.serviceComplaintCaseEvents).values({
+    complaint_case_id: caseId, actor_account_id: actorId, event_type: eventType, note: note ?? null,
+  });
+}
+
+export async function createServiceComplaint(accountId: string, requestId: string, dto: any) {
+  const request = await db.query.serviceRequests.findFirst({ where: (t, { eq }) => eq(t.id, requestId) });
+  if (!request || request.requester_account_id !== accountId) throw forbidden('You can only report a service you requested');
+  if (!['accepted', 'in_progress', 'completed'].includes(request.status)) throw badRequest('A complaint can be filed after a provider accepts the service');
+  const accepted = await db.query.serviceOffers.findFirst({ where: (t, { and, eq }) => and(eq(t.request_id, request.id), eq(t.status, 'accepted')) });
+  if (!accepted) throw badRequest('The service has no accepted provider');
+  const subjectType = String(dto.subject_type ?? '');
+  let subjectId: string;
+  let assignmentId: string | null = null;
+  if (subjectType === 'provider') {
+    const provider = await db.query.serviceProviders.findFirst({ where: (t, { eq }) => eq(t.id, accepted.provider_id) });
+    if (!provider) throw notFound('Service provider not found');
+    subjectId = provider.account_id;
+  } else if (subjectType === 'worker') {
+    const assignment = await db.query.serviceAssignments.findFirst({ where: (t, { and, eq }) => and(
+      eq(t.id, String(dto.assignment_id ?? '')), eq(t.request_id, request.id), eq(t.provider_id, accepted.provider_id),
+    ) });
+    if (!assignment) throw badRequest('Choose a worker assigned to this service');
+    subjectId = assignment.worker_account_id;
+    assignmentId = assignment.id;
+  } else throw badRequest('Choose the provider or an assigned worker');
+  const category = String(dto.category ?? '').trim();
+  const allowedCategories = ['service_quality', 'communication', 'safety', 'billing', 'other'];
+  if (!allowedCategories.includes(category)) throw badRequest('Choose a complaint category');
+  const description = String(dto.description ?? '').trim().slice(0, 4000);
+  if (description.length < 10) throw badRequest('Describe what happened in at least 10 characters');
+  const [caseRow] = await db.transaction(async (tx) => {
+    const [created] = await tx.insert(schema.serviceComplaintCases).values({
+      request_id: request.id, reporter_account_id: accountId, subject_type: subjectType,
+      subject_account_id: subjectId, assignment_id: assignmentId, category, description,
+    }).returning();
+    await logComplaintEvent(tx, created.id, accountId, 'created', category);
+    return [created];
+  });
+  return { id: caseRow.id, status: caseRow.status, subject_type: caseRow.subject_type };
+}
+
+export async function listMyServiceComplaints(accountId: string) {
+  const rows = await db.select({ complaint: schema.serviceComplaintCases, request: schema.serviceRequests, service: schema.providerServices, provider: schema.serviceProviders })
+    .from(schema.serviceComplaintCases)
+    .innerJoin(schema.serviceRequests, eq(schema.serviceComplaintCases.request_id, schema.serviceRequests.id))
+    .innerJoin(schema.providerServices, eq(schema.serviceRequests.provider_service_id, schema.providerServices.id))
+    .innerJoin(schema.serviceProviders, eq(schema.providerServices.provider_id, schema.serviceProviders.id))
+    .where(or(eq(schema.serviceComplaintCases.reporter_account_id, accountId), eq(schema.serviceComplaintCases.subject_account_id, accountId)))
+    .orderBy(desc(schema.serviceComplaintCases.created_at)).limit(100);
+  if (rows.length) await db.insert(schema.serviceComplaintCaseEvents).values(rows.map(({ complaint }) => ({
+    complaint_case_id: complaint.id, actor_account_id: accountId, event_type: 'viewed', note: null,
+  })));
+  return rows.map(({ complaint, request, service, provider }) => ({
+    ...complaint, service_request_id: request.id, request_summary: request.summary,
+    service_title: service.title, provider_name: provider.display_name,
+  }));
+}
+
+export async function respondToServiceComplaint(accountId: string, complaintId: string, dto: any) {
+  const response = String(dto.response ?? '').trim().slice(0, 3000);
+  if (response.length < 5) throw badRequest('Write a response before submitting');
+  const complaint = await db.query.serviceComplaintCases.findFirst({ where: (t, { eq }) => eq(t.id, complaintId) });
+  if (!complaint || complaint.subject_account_id !== accountId) throw forbidden('Only the organization or worker named in the complaint can respond');
+  if (['resolved', 'dismissed'].includes(complaint.status)) throw badRequest('This complaint is already closed');
+  const [updated] = await db.transaction(async (tx) => {
+    const result = await tx.update(schema.serviceComplaintCases).set({
+      subject_response: response, status: complaint.status === 'open' ? 'in_review' : complaint.status, updated_at: new Date(),
+    }).where(and(eq(schema.serviceComplaintCases.id, complaintId), inArray(schema.serviceComplaintCases.status, ['open', 'in_review']))).returning();
+    if (result[0]) await logComplaintEvent(tx, complaint.id, accountId, 'subject_response', response);
+    return result;
+  });
+  if (!updated) throw badRequest('This complaint is already closed');
+  return { id: updated.id, status: updated.status, subject_response: updated.subject_response };
+}
+
+export async function listOpenServiceComplaints(adminId: string) {
+  const rows = await db.select({ complaint: schema.serviceComplaintCases, request: schema.serviceRequests, service: schema.providerServices, provider: schema.serviceProviders })
+    .from(schema.serviceComplaintCases)
+    .innerJoin(schema.serviceRequests, eq(schema.serviceComplaintCases.request_id, schema.serviceRequests.id))
+    .innerJoin(schema.providerServices, eq(schema.serviceRequests.provider_service_id, schema.providerServices.id))
+    .innerJoin(schema.serviceProviders, eq(schema.providerServices.provider_id, schema.serviceProviders.id))
+    .where(inArray(schema.serviceComplaintCases.status, ['open', 'in_review']))
+    .orderBy(desc(schema.serviceComplaintCases.created_at)).limit(100);
+  if (rows.length) await db.insert(schema.serviceComplaintCaseEvents).values(rows.map(({ complaint }) => ({
+    complaint_case_id: complaint.id, actor_account_id: adminId, event_type: 'admin_viewed', note: null,
+  })));
+  const personIds = [...new Set(rows.map(({ complaint }) => complaint.subject_account_id))];
+  const names = personIds.length ? await db.select({ id: schema.accounts.id, first_name: schema.personProfiles.first_name, last_name: schema.personProfiles.last_name, common_name: schema.personProfiles.common_name })
+    .from(schema.accounts).leftJoin(schema.personProfiles, eq(schema.personProfiles.owner_account_id, schema.accounts.id)).where(inArray(schema.accounts.id, personIds)) : [];
+  const nameMap = new Map(names.map((row) => [row.id, row.common_name?.trim() || `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()]));
+  return rows.map(({ complaint, request, service, provider }) => ({
+    ...complaint, request_summary: request.summary, service_title: service.title,
+    provider_name: provider.display_name, subject_name: nameMap.get(complaint.subject_account_id) || 'Provider organization',
+  }));
+}
+
+export async function resolveServiceComplaint(adminId: string, complaintId: string, dto: any) {
+  const outcome = String(dto.outcome ?? '');
+  if (!['resolved', 'dismissed'].includes(outcome)) throw badRequest('Choose resolve or dismiss');
+  const note = String(dto.note ?? '').trim().slice(0, 2000);
+  if (note.length < 4) throw badRequest('Add a resolution note');
+  const [updated] = await db.transaction(async (tx) => {
+    const result = await tx.update(schema.serviceComplaintCases).set({
+      status: outcome as 'resolved' | 'dismissed', resolution_note: note, resolved_by_account_id: adminId, resolved_at: new Date(), updated_at: new Date(),
+    }).where(and(eq(schema.serviceComplaintCases.id, complaintId), inArray(schema.serviceComplaintCases.status, ['open', 'in_review']))).returning();
+    if (result[0]) await logComplaintEvent(tx, complaintId, adminId, outcome, note);
+    return result;
+  });
+  if (!updated) throw notFound('Open complaint not found');
+  return { id: updated.id, status: updated.status };
+}
+
 export async function updateRequestStatus(accountId: string, requestId: string, dto: any) {
   const request = await db.query.serviceRequests.findFirst({ where: (t, { eq }) => eq(t.id, requestId) });
   if (!request) throw notFound('Request not found');

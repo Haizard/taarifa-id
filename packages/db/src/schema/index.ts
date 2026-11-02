@@ -30,6 +30,7 @@ export const serviceAssignmentEventTypeEnum = pgEnum('service_assignment_event_t
 export const serviceWorkerReviewStatusEnum = pgEnum('service_worker_review_status', ['active', 'disputed', 'upheld', 'removed']);
 export const careerVerificationStatusEnum = pgEnum('career_verification_status', ['pending', 'verified', 'disputed', 'rejected']);
 export const providerVerificationStatusEnum = pgEnum('provider_verification_status', ['unverified', 'pending', 'verified', 'rejected']);
+export const complaintStatusEnum = pgEnum('complaint_status', ['open', 'in_review', 'resolved', 'dismissed']);
 
 export type ServiceFormField = {
   key: string;
@@ -528,12 +529,64 @@ export const serviceWorkerReviews = pgTable('service_worker_reviews', {
   check('service_worker_reviews_rating_range', sql`${t.rating} between 1 and 5`),
 ]);
 
+export const serviceComplaintCases = pgTable('service_complaint_cases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => serviceRequests.id),
+  reporter_account_id: uuid('reporter_account_id').notNull().references(() => accounts.id),
+  subject_type: varchar('subject_type', { length: 16 }).notNull(),
+  subject_account_id: uuid('subject_account_id').notNull().references(() => accounts.id),
+  assignment_id: uuid('assignment_id').references(() => serviceAssignments.id),
+  category: varchar('category', { length: 40 }).notNull(),
+  description: text('description').notNull(),
+  status: complaintStatusEnum('status').notNull().default('open'),
+  subject_response: text('subject_response'),
+  resolution_note: text('resolution_note'),
+  resolved_by_account_id: uuid('resolved_by_account_id').references(() => accounts.id),
+  resolved_at: timestamp('resolved_at', { withTimezone: true }),
+  ...timestamps,
+}, (t) => [
+  index('service_complaint_cases_request_idx').on(t.request_id),
+  index('service_complaint_cases_reporter_idx').on(t.reporter_account_id),
+  index('service_complaint_cases_subject_idx').on(t.subject_account_id),
+  index('service_complaint_cases_status_idx').on(t.status),
+  check('service_complaint_cases_subject_type_check', sql`${t.subject_type} IN ('provider', 'worker')`),
+]);
+
+export const serviceComplaintCaseEvents = pgTable('service_complaint_case_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  complaint_case_id: uuid('complaint_case_id').notNull().references(() => serviceComplaintCases.id),
+  actor_account_id: uuid('actor_account_id').notNull().references(() => accounts.id),
+  event_type: varchar('event_type', { length: 40 }).notNull(),
+  note: text('note'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('service_complaint_case_events_case_idx').on(t.complaint_case_id, t.created_at)]);
+
+export const apiRateLimitBuckets = pgTable('api_rate_limit_buckets', {
+  subject_key: varchar('subject_key', { length: 255 }).notNull(),
+  action: varchar('action', { length: 80 }).notNull(),
+  window_started_at: timestamp('window_started_at', { withTimezone: true }).notNull(),
+  count: integer('count').notNull().default(0),
+}, (t) => [primaryKey({ columns: [t.subject_key, t.action] })]);
+
+export const platformActivityEvents = pgTable('platform_activity_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  actor_account_id: uuid('actor_account_id').references(() => accounts.id),
+  action: varchar('action', { length: 80 }).notNull(),
+  resource_id: varchar('resource_id', { length: 100 }),
+  outcome: varchar('outcome', { length: 20 }).notNull().default('attempted'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('platform_activity_events_actor_idx').on(t.actor_account_id, t.created_at), index('platform_activity_events_action_idx').on(t.action, t.created_at)]);
+
 export const careerProfiles = pgTable('career_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
   account_id: uuid('account_id').notNull().unique().references(() => accounts.id),
   headline: varchar('headline', { length: 200 }),
   summary: text('summary'),
   skills: jsonb('skills').$type<string[]>().notNull().default([]),
+  qualifications: jsonb('qualifications').$type<string[]>().notNull().default([]),
+  availability: varchar('availability', { length: 80 }),
+  preferred_employment_types: jsonb('preferred_employment_types').$type<string[]>().notNull().default([]),
+  professional_references: jsonb('professional_references').$type<Array<{ name: string; role: string; organization: string; contact: string; permission_confirmed: boolean }>>().notNull().default([]),
   job_seeking: boolean('job_seeking').notNull().default(false),
   job_categories: jsonb('job_categories').$type<string[]>().notNull().default([]),
   job_locations: jsonb('job_locations').$type<string[]>().notNull().default([]),
@@ -633,11 +686,21 @@ export const careerHistory = pgTable('career_history', {
   uniqueIndex('career_history_source_job_application_unique').on(t.source_job_application_id),
 ]);
 
+export const careerHistoryEvents = pgTable('career_history_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  career_record_id: uuid('career_record_id').notNull().references(() => careerHistory.id),
+  actor_account_id: uuid('actor_account_id').notNull().references(() => accounts.id),
+  event_type: varchar('event_type', { length: 40 }).notNull(),
+  note: text('note'),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index('career_history_events_record_idx').on(t.career_record_id, t.created_at)]);
+
 export const careerShareGrants = pgTable('career_share_grants', {
   id: uuid('id').primaryKey().defaultRandom(),
   token: uuid('token').notNull().defaultRandom().unique(),
   worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
   include_profile: boolean('include_profile').notNull().default(true),
+  include_extended_profile: boolean('include_extended_profile').notNull().default(false),
   history_record_ids: jsonb('history_record_ids').$type<string[]>().notNull().default([]),
   purpose: varchar('purpose', { length: 240 }).notNull(),
   expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),

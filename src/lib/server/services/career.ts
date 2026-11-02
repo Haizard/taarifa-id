@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import * as schema from '@taarifa/db/schema';
 import { db } from '../db';
 import { badRequest, forbidden, notFound } from '../errors';
+import { recordActivity } from './platform-controls';
 
 async function requireCareerAccount(accountId: string) {
   const account = await db.query.accounts.findFirst({ where: (t, { eq, isNull }) => and(eq(t.id, accountId), isNull(t.deleted_at)) });
@@ -30,6 +31,32 @@ function cleanSkills(value: unknown) {
   return [...new Set(value.map((item) => String(item).trim().slice(0, 80)).filter(Boolean))].slice(0, 40);
 }
 
+function cleanCareerList(value: unknown, maxItems: number, maxLength: number, label: string) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw badRequest(`${label} must be a list`);
+  return [...new Set(value.map((item) => String(item).trim().slice(0, maxLength)).filter(Boolean))].slice(0, maxItems);
+}
+
+function cleanReferences(value: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 5) throw badRequest('Add up to 5 professional references');
+  return value.map((raw: any) => {
+    const reference = {
+      name: String(raw?.name ?? '').trim().slice(0, 120),
+      role: String(raw?.role ?? '').trim().slice(0, 120),
+      organization: String(raw?.organization ?? '').trim().slice(0, 160),
+      contact: String(raw?.contact ?? '').trim().slice(0, 200),
+      permission_confirmed: raw?.permission_confirmed === true,
+    };
+    if (!reference.name || !reference.contact || !reference.permission_confirmed) throw badRequest('Each reference needs a name, contact method, and your confirmation that they agreed to be contacted');
+    return reference;
+  });
+}
+
+async function logCareerEvent(recordId: string, actorId: string, eventType: string, note: string | null = null) {
+  await db.insert(schema.careerHistoryEvents).values({ career_record_id: recordId, actor_account_id: actorId, event_type: eventType, note });
+}
+
 function validDate(value: unknown, label: string) {
   const dateValue = String(value ?? '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || Number.isNaN(new Date(`${dateValue}T00:00:00.000Z`).getTime())) throw badRequest(`Enter a valid ${label}`);
@@ -43,6 +70,10 @@ export async function getMyCareer(accountId: string) {
     .from(schema.careerHistory)
     .where(eq(schema.careerHistory.worker_account_id, accountId))
     .orderBy(desc(schema.careerHistory.started_on));
+  const recordIds = records.map(({ history }) => history.id);
+  const historyEvents = recordIds.length ? await db.select().from(schema.careerHistoryEvents)
+    .where(inArray(schema.careerHistoryEvents.career_record_id, recordIds)).orderBy(desc(schema.careerHistoryEvents.created_at)) : [];
+  await recordActivity(accountId, 'career_record_access', accountId, 'succeeded');
   const grants = await db.query.careerShareGrants.findMany({
     where: (t, { eq }) => eq(t.worker_account_id, accountId),
     orderBy: (t, { desc }) => [desc(t.created_at)],
@@ -52,6 +83,7 @@ export async function getMyCareer(accountId: string) {
     history: records.map(({ history }) => ({
       ...history,
       organization_name: history.organization_name,
+      correction_history: historyEvents.filter((event) => event.career_record_id === history.id),
     })),
     shares: grants.map((grant) => ({
       id: grant.id,
@@ -69,8 +101,13 @@ export async function saveMyCareer(accountId: string, dto: any) {
   const headline = String(dto.headline ?? '').trim().slice(0, 200) || null;
   const summary = String(dto.summary ?? '').trim().slice(0, 3000) || null;
   const skills = cleanSkills(dto.skills ?? []);
-  const [profile] = await db.insert(schema.careerProfiles).values({ account_id: accountId, headline, summary, skills })
-    .onConflictDoUpdate({ target: schema.careerProfiles.account_id, set: { headline, summary, skills, updated_at: new Date() } })
+  const qualifications = cleanCareerList(dto.qualifications, 20, 200, 'Qualifications');
+  const availability = String(dto.availability ?? '').trim().slice(0, 80) || null;
+  const preferredEmploymentTypes = cleanCareerList(dto.preferred_employment_types, 8, 40, 'Employment preferences');
+  const professionalReferences = cleanReferences(dto.professional_references);
+  const values = { account_id: accountId, headline, summary, skills, qualifications, availability, preferred_employment_types: preferredEmploymentTypes, professional_references: professionalReferences };
+  const [profile] = await db.insert(schema.careerProfiles).values(values)
+    .onConflictDoUpdate({ target: schema.careerProfiles.account_id, set: { ...values, updated_at: new Date() } })
     .returning();
   return profile;
 }
@@ -83,6 +120,7 @@ export async function listEmployerCareerRecords(accountId: string) {
     .innerJoin(schema.personProfiles, eq(schema.personProfiles.owner_account_id, schema.accounts.id))
     .where(eq(schema.careerHistory.organization_account_id, account.id))
     .orderBy(desc(schema.careerHistory.created_at));
+  await recordActivity(accountId, 'career_record_access', accountId, 'succeeded');
   return rows.map(({ history, worker, profile }) => ({
     ...history,
     worker_name: profile.common_name?.trim() || `${profile.first_name} ${profile.last_name}`.trim(),
@@ -115,6 +153,7 @@ export async function createEmployerCareerRecord(accountId: string, dto: any) {
     ended_on: endedOn,
     verification_status: 'pending',
   }).returning();
+  await logCareerEvent(record.id, accountId, 'created', `Submitted ${position} employment record`);
   return { ...record, worker_name: profile.common_name?.trim() || `${profile.first_name} ${profile.last_name}`.trim() };
 }
 
@@ -134,6 +173,22 @@ export async function respondToCareerRecord(accountId: string, recordId: string,
     worker_note: note,
     updated_at: new Date(),
   }).where(eq(schema.careerHistory.id, record.id)).returning();
+  await logCareerEvent(record.id, accountId, action, note);
+  return updated;
+}
+
+export async function requestCareerCorrection(accountId: string, recordId: string, dto: any) {
+  await requireCareerAccount(accountId);
+  const record = await db.query.careerHistory.findFirst({ where: (t, { eq }) => eq(t.id, recordId) });
+  if (!record || record.worker_account_id !== accountId) throw forbidden('This employment record does not belong to your account');
+  if (record.verification_status !== 'verified') throw badRequest('Only verified records can start a correction request');
+  const note = String(dto.note ?? '').trim().slice(0, 2000);
+  if (note.length < 8) throw badRequest('Describe the correction you are requesting');
+  const [updated] = await db.update(schema.careerHistory).set({
+    verification_status: 'disputed', worker_note: note, verified_by_account_id: null, updated_at: new Date(),
+  }).where(and(eq(schema.careerHistory.id, record.id), eq(schema.careerHistory.verification_status, 'verified'))).returning();
+  if (!updated) throw badRequest('This record has already changed');
+  await logCareerEvent(record.id, accountId, 'correction_requested', note);
   return updated;
 }
 
@@ -153,6 +208,7 @@ export async function resolveEmployerCareerRecord(accountId: string, recordId: s
     moderation_note: note,
     updated_at: new Date(),
   }).where(eq(schema.careerHistory.id, record.id)).returning();
+  await logCareerEvent(record.id, accountId, action === 'confirm' ? 'correction_confirmed' : 'record_rejected', note);
   return updated;
 }
 
@@ -178,6 +234,7 @@ export async function createCareerShare(accountId: string, dto: any) {
   const [grant] = await db.insert(schema.careerShareGrants).values({
     worker_account_id: accountId,
     include_profile: dto.include_profile !== false,
+    include_extended_profile: dto.include_extended_profile === true,
     history_record_ids: ids,
     purpose,
     expires_at: expiresAt,
@@ -219,6 +276,12 @@ export async function getSharedCareer(token: string) {
       headline: profile.headline,
       summary: profile.summary,
       skills: profile.skills,
+      ...(grant.include_extended_profile ? {
+        qualifications: profile.qualifications,
+        availability: profile.availability,
+        preferred_employment_types: profile.preferred_employment_types,
+        professional_references: profile.professional_references,
+      } : {}),
     } : null,
     history: history.map(({ record }) => ({ position: record.position, started_on: record.started_on, ended_on: record.ended_on, organization_name: record.organization_name })),
   };

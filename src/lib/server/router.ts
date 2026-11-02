@@ -16,6 +16,8 @@ import * as careerService from './services/career';
 import * as jobsService from './services/jobs';
 import * as jobSafetyService from './services/job-safety';
 import * as providerVerificationService from './services/provider-verification';
+import { createHash } from 'node:crypto';
+import { enforceRateLimit, recordActivity, routeActivity } from './services/platform-controls';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -121,6 +123,7 @@ const routes: Route[] = [
   { method: 'POST', segments: ['career', 'employer', 'records'], handler: (c) => careerService.createEmployerCareerRecord(c.user!.sub, c.body) },
   { method: 'POST', segments: ['career', 'employer', 'records', { param: 'id' }, 'resolve'], handler: (c) => careerService.resolveEmployerCareerRecord(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['career', 'records', { param: 'id' }, 'respond'], handler: (c) => careerService.respondToCareerRecord(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['career', 'records', { param: 'id' }, 'correction'], handler: (c) => careerService.requestCareerCorrection(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['career', 'share', { param: 'token' }], public: true, handler: (c) => careerService.getSharedCareer(c.params.token) },
   { method: 'GET', segments: ['jobs', 'preferences'], handler: (c) => jobsService.getJobPreferences(c.user!.sub) },
   { method: 'GET', segments: ['jobs', 'employers'], handler: (c) => jobsService.listEligibleEmployers(c.user!.sub) },
@@ -173,6 +176,11 @@ const routes: Route[] = [
   { method: 'POST', segments: ['marketplace', 'offers', { param: 'id' }, 'accept'], handler: (c) => marketplaceService.acceptOffer(c.user!.sub, c.params.id) },
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'review'], handler: (c) => marketplaceService.createReview(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'worker-reviews'], handler: (c) => marketplaceService.createWorkerReview(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['marketplace', 'requests', { param: 'id' }, 'complaints'], handler: (c) => marketplaceService.createServiceComplaint(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['marketplace', 'complaints'], handler: (c) => marketplaceService.listMyServiceComplaints(c.user!.sub) },
+  { method: 'POST', segments: ['marketplace', 'complaints', { param: 'id' }, 'response'], handler: (c) => marketplaceService.respondToServiceComplaint(c.user!.sub, c.params.id, c.body) },
+  { method: 'GET', segments: ['admin', 'marketplace', 'complaints'], roles: ['system_admin'], handler: (c) => marketplaceService.listOpenServiceComplaints(c.user!.sub) },
+  { method: 'PATCH', segments: ['admin', 'marketplace', 'complaints', { param: 'id' }], roles: ['system_admin'], handler: (c) => marketplaceService.resolveServiceComplaint(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['admin', 'marketplace', 'worker-review-disputes'], roles: ['system_admin'], handler: () => marketplaceService.listWorkerReviewDisputes() },
   { method: 'PATCH', segments: ['admin', 'marketplace', 'worker-reviews', { param: 'id' }, 'resolve'], roles: ['system_admin'], handler: (c) => marketplaceService.resolveWorkerReviewDispute(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['admin', 'marketplace', 'provider-review-disputes'], roles: ['system_admin'], handler: () => marketplaceService.listProviderReviewDisputes() },
@@ -242,6 +250,18 @@ export async function handle(method: Method, req: NextRequest): Promise<NextResp
   }
   if (match.route.roles?.length && (!user || !match.route.roles.includes(user.role))) {
     return toErrorResponse(new ApiError(403, 'You do not have permission to access this resource'));
+  }
+
+  const activity = routeActivity(method, segments);
+  if (activity) {
+    const forwardedFor = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const subjectKey = user?.sub ?? `ip:${createHash('sha256').update(forwardedFor).digest('hex')}`;
+    try {
+      await enforceRateLimit(subjectKey, activity.action, activity.limit, activity.windowMs);
+      await recordActivity(user?.sub ?? null, activity.action, activity.resourceId);
+    } catch (err) {
+      return toErrorResponse(err);
+    }
   }
 
   let body: any = {};
