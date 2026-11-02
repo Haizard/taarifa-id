@@ -141,7 +141,7 @@ Implemented foundation:
 
 Remaining work:
 
-- Add document uploads, organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
+- Implemented private PDF/JPEG/PNG evidence uploads (up to 2 MB) and system-admin-only retrieval. Add formal organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
 - Add age and guardian-consent safeguards to future minor-safe school or service assignment categories.
 - Workers can exclude selected verified employers from passive search and invitations while retaining direct-application access.
 - Add anti-spam limits and audit logs for searches, views, applications, and contact attempts.

@@ -11,7 +11,7 @@ import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components
 
 type Field = { key: string; label: string; type: string; required?: boolean; options?: string[] };
 type Provider = { id: string; category: 'hospital' | 'school' | 'garage'; display_name: string; verification_status: string; description: string | null; contact_number: string | null; region: string | null; district: string | null; ward: string | null; accepting_requests: boolean; services: any[]; members: Array<{ id: string; display_name: string; member_type: string; ratings_available: boolean; rating: number | null; review_count: number }> };
-type Verification = { status: string; verified_at: string | null; request: { legal_name: string; registration_reference: string; evidence_notes: string | null; status: string; review_note: string | null } | null };
+type Verification = { status: string; verified_at: string | null; request: { legal_name: string; registration_reference: string; evidence_notes: string | null; evidence_file_name: string | null; evidence_size_bytes: number | null; status: string; review_note: string | null } | null };
 
 const seedFields: Record<string, Field[]> = {
   hospital: [
@@ -42,6 +42,7 @@ export default function ProviderPage() {
   const [legalName, setLegalName] = useState('');
   const [registrationReference, setRegistrationReference] = useState('');
   const [evidenceNotes, setEvidenceNotes] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (data) setProfile({ category: data.category, display_name: data.display_name, description: data.description ?? '', contact_number: data.contact_number ?? '', region: data.region ?? '', district: data.district ?? '', ward: data.ward ?? '' });
@@ -63,7 +64,19 @@ export default function ProviderPage() {
     onError: (e: any) => toast.error(e.message),
   });
   const requestVerification = useMutation({
-    mutationFn: () => api.post('/marketplace/provider/verification', { legal_name: legalName, registration_reference: registrationReference, evidence_notes: evidenceNotes }),
+    mutationFn: async () => {
+      if (!evidenceFile) throw new Error('Choose a registration document to upload');
+      const evidenceBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+        reader.onerror = () => reject(new Error('Could not read the selected document'));
+        reader.readAsDataURL(evidenceFile);
+      });
+      return api.post('/marketplace/provider/verification', {
+        legal_name: legalName, registration_reference: registrationReference, evidence_notes: evidenceNotes,
+        evidence_file_name: evidenceFile.name, evidence_mime_type: evidenceFile.type, evidence_base64: evidenceBase64,
+      });
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['provider-verification'] }); qc.invalidateQueries({ queryKey: ['marketplace-provider'] }); toast.success('Verification request submitted'); },
     onError: (e: any) => toast.error(e.message),
   });
@@ -98,11 +111,13 @@ export default function ProviderPage() {
           <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="font-semibold text-ink-primary">Provider verification status</div><p className="mt-1 text-[12px] text-ink-secondary">Verified organizations can publish jobs, invite opted-in workers, and review applicant career details.</p></div><Badge tone={verificationQuery.data?.status === 'verified' ? 'green' : verificationQuery.data?.status === 'pending' ? 'yellow' : verificationQuery.data?.status === 'rejected' ? 'red' : 'grey'}>{verificationQuery.data?.status ?? 'unverified'}</Badge></div>
           {verificationQuery.data?.verified_at && <p className="mt-2 text-[11px] text-ink-tertiary">Verified {new Date(verificationQuery.data.verified_at).toLocaleDateString()}</p>}
           {verificationQuery.data?.request?.review_note && <p className="mt-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary">Review note: {verificationQuery.data.request.review_note}</p>}
+          {verificationQuery.data?.request?.evidence_file_name && verificationQuery.data.status === 'pending' && <p className="mt-3 text-[12px] text-ink-secondary">Evidence submitted: {verificationQuery.data.request.evidence_file_name} ({Math.ceil((verificationQuery.data.request.evidence_size_bytes ?? 0) / 1024)} KB)</p>}
           {verificationQuery.data?.status !== 'verified' && verificationQuery.data?.status !== 'pending' && <form onSubmit={(e) => { e.preventDefault(); requestVerification.mutate(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="text-[12px] font-medium text-ink-secondary">Registered organization name<input required minLength={3} maxLength={200} value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={data.display_name} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
             <label className="text-[12px] font-medium text-ink-secondary">Registration or licence reference<input required minLength={3} maxLength={120} value={registrationReference} onChange={(e) => setRegistrationReference(e.target.value)} className="mt-1 w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[14px] text-ink-primary" /></label>
-            <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Evidence notes (no files yet)<textarea maxLength={3000} value={evidenceNotes} onChange={(e) => setEvidenceNotes(e.target.value)} placeholder="Describe the registration document or licence and how it can be checked." className="mt-1 min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /></label>
-            <div className="sm:col-span-2"><GlassButton type="submit" disabled={requestVerification.isPending}>{requestVerification.isPending ? 'Submitting…' : 'Request provider verification'}</GlassButton></div>
+            <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Registration document (PDF, JPEG, or PNG; up to 2 MB)<input required type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => { const file = e.target.files?.[0] ?? null; if (file && file.size > 2 * 1024 * 1024) { toast.error('Document must not exceed 2 MB'); e.target.value = ''; setEvidenceFile(null); return; } if (file && !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) { toast.error('Choose a PDF, JPEG, or PNG document'); e.target.value = ''; setEvidenceFile(null); return; } setEvidenceFile(file); }} className="mt-1 block w-full rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary file:mr-3 file:rounded-full file:border-0 file:bg-accent-primary/10 file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-accent-primary" /></label>
+            <label className="text-[12px] font-medium text-ink-secondary sm:col-span-2">Evidence notes<textarea maxLength={3000} value={evidenceNotes} onChange={(e) => setEvidenceNotes(e.target.value)} placeholder="Add context to help reviewers check this document." className="mt-1 min-h-16 w-full rounded-xl border border-glass-border bg-white/55 px-3 py-2 text-[13px] text-ink-primary" /></label>
+            <div className="sm:col-span-2"><GlassButton type="submit" disabled={requestVerification.isPending || !evidenceFile}>{requestVerification.isPending ? 'Uploading…' : 'Request provider verification'}</GlassButton></div>
           </form>}
           {verificationQuery.data?.status === 'pending' && <div className="mt-3 flex items-center gap-2 rounded-lg bg-accent-warning/10 p-3 text-[12px] text-ink-secondary"><BadgeCheck size={16} />Your registration details are awaiting platform review. Job posting and candidate search stay locked until approval.</div>}
         </section>

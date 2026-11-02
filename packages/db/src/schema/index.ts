@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp, integer, numeric, jsonb, uniqueIndex, index, primaryKey, pgEnum, foreignKey, check, date } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, timestamp, integer, numeric, jsonb, uniqueIndex, index, primaryKey, pgEnum, foreignKey, check, date, customType } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
 export const accountTypeEnum = pgEnum('account_type', ['individual', 'family', 'school', 'business', 'institution']);
@@ -386,12 +386,30 @@ export const providerVerificationRequests = pgTable('provider_verification_reque
   legal_name: varchar('legal_name', { length: 200 }).notNull(),
   registration_reference: varchar('registration_reference', { length: 120 }).notNull(),
   evidence_notes: text('evidence_notes'),
+  evidence_file_name: varchar('evidence_file_name', { length: 255 }),
+  evidence_mime_type: varchar('evidence_mime_type', { length: 40 }),
+  evidence_size_bytes: integer('evidence_size_bytes'),
+  evidence_document: customType<{ data: Buffer; driverData: Buffer }>({
+    dataType: () => 'bytea',
+    fromDriver: (value) => Buffer.from(value),
+  })('evidence_document'),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
   review_note: text('review_note'),
   reviewed_by_account_id: uuid('reviewed_by_account_id').references(() => accounts.id),
   reviewed_at: timestamp('reviewed_at', { withTimezone: true }),
   ...timestamps,
-}, (t) => [index('provider_verification_requests_provider_idx').on(t.provider_id), index('provider_verification_requests_status_idx').on(t.status)]);
+}, (t) => [
+  index('provider_verification_requests_provider_idx').on(t.provider_id),
+  index('provider_verification_requests_status_idx').on(t.status),
+  check('provider_verification_evidence_metadata_check', sql`(
+    ${t.evidence_document} IS NULL AND ${t.evidence_file_name} IS NULL AND ${t.evidence_mime_type} IS NULL AND ${t.evidence_size_bytes} IS NULL
+  ) OR (
+    ${t.evidence_document} IS NOT NULL AND ${t.evidence_file_name} IS NOT NULL AND ${t.evidence_mime_type} IS NOT NULL
+    AND ${t.evidence_mime_type} IN ('application/pdf', 'image/jpeg', 'image/png')
+    AND ${t.evidence_size_bytes} IS NOT NULL AND ${t.evidence_size_bytes} BETWEEN 1 AND 2097152
+    AND octet_length(${t.evidence_document}) = ${t.evidence_size_bytes}
+  )`),
+]);
 
 export const providerServices = pgTable('provider_services', {
   id: uuid('id').primaryKey().defaultRandom(),

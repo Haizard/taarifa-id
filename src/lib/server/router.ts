@@ -26,6 +26,7 @@ interface Route {
   segments: Segment[];
   public?: boolean;
   roles?: string[];
+  privateNoStore?: boolean;
   handler: (ctx: RouteContext) => unknown | Promise<unknown>;
 }
 
@@ -156,6 +157,7 @@ const routes: Route[] = [
   { method: 'GET', segments: ['marketplace', 'provider', 'verification'], handler: (c) => providerVerificationService.getOwnVerification(c.user!.sub) },
   { method: 'POST', segments: ['marketplace', 'provider', 'verification'], handler: (c) => providerVerificationService.submitVerification(c.user!.sub, c.body) },
   { method: 'GET', segments: ['admin', 'providers', 'verification-requests'], roles: ['system_admin'], handler: () => providerVerificationService.listPendingVerificationRequests() },
+  { method: 'GET', segments: ['admin', 'providers', 'verification-requests', { param: 'id' }, 'evidence'], roles: ['system_admin'], privateNoStore: true, handler: (c) => providerVerificationService.getVerificationEvidence(c.user!.sub, c.params.id) },
   { method: 'PATCH', segments: ['admin', 'providers', 'verification-requests', { param: 'id' }], roles: ['system_admin'], handler: (c) => providerVerificationService.reviewVerificationRequest(c.user!.sub, c.params.id, c.body) },
   { method: 'POST', segments: ['marketplace', 'services'], handler: (c) => marketplaceService.createService(c.user!.sub, c.body) },
   { method: 'PATCH', segments: ['marketplace', 'services', { param: 'id' }], handler: (c) => marketplaceService.updateService(c.user!.sub, c.params.id, c.body) },
@@ -253,7 +255,7 @@ export async function handle(method: Method, req: NextRequest): Promise<NextResp
 
   try {
     const data = await match.route.handler({ user, body, query: req.nextUrl.searchParams, params: match.params, req });
-    return NextResponse.json(data);
+    return NextResponse.json(data, match.route.privateNoStore ? { headers: { 'Cache-Control': 'private, no-store' } } : undefined);
   } catch (err) {
     return toErrorResponse(err);
   }

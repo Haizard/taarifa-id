@@ -36,7 +36,7 @@ const pool = new Pool({
 
 const migrationsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../packages/db/migrations');
 try {
-  for (const filename of ['0001_service_marketplace.sql', '0002_service_reviews.sql', '0003_service_assignments.sql', '0004_service_worker_reviews.sql', '0005_provider_review_moderation.sql', '0006_career_portability.sql', '0007_job_discovery.sql', '0008_job_messages.sql', '0009_job_invitations.sql', '0010_job_safety_actions.sql', '0011_provider_verification.sql', '0012_revoke_minor_career_shares.sql', '0013_two_sided_hire_confirmation.sql']) {
+  for (const filename of ['0001_service_marketplace.sql', '0002_service_reviews.sql', '0003_service_assignments.sql', '0004_service_worker_reviews.sql', '0005_provider_review_moderation.sql', '0006_career_portability.sql', '0007_job_discovery.sql', '0008_job_messages.sql', '0009_job_invitations.sql', '0010_job_safety_actions.sql', '0011_provider_verification.sql', '0012_revoke_minor_career_shares.sql', '0013_two_sided_hire_confirmation.sql', '0014_provider_verification_evidence.sql']) {
     try {
       await pool.query(await readFile(path.join(migrationsDirectory, filename), 'utf8'));
     } catch (error) {
