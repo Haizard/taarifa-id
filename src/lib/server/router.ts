@@ -14,6 +14,7 @@ import * as publicService from './services/public';
 import * as marketplaceService from './services/marketplace';
 import * as careerService from './services/career';
 import * as jobsService from './services/jobs';
+import * as jobSafetyService from './services/job-safety';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -129,6 +130,10 @@ const routes: Route[] = [
   { method: 'POST', segments: ['jobs', 'applications', { param: 'id' }, 'messages'], handler: (c) => jobsService.sendApplicationMessage(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['jobs', 'invitations'], handler: (c) => jobsService.listWorkerInvitations(c.user!.sub) },
   { method: 'POST', segments: ['jobs', 'invitations', { param: 'id' }, 'respond'], handler: (c) => jobsService.respondToJobInvitation(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['jobs', { param: 'id' }, 'safety-actions'], handler: (c) => jobSafetyService.reportOrBlock(c.user!.sub, { ...c.body, job_id: c.params.id }) },
+  { method: 'POST', segments: ['jobs', 'applications', { param: 'id' }, 'safety-actions'], handler: (c) => jobSafetyService.reportOrBlock(c.user!.sub, { ...c.body, application_id: c.params.id }) },
+  { method: 'GET', segments: ['job-safety', 'blocks'], handler: (c) => jobSafetyService.listMyBlocks(c.user!.sub) },
+  { method: 'DELETE', segments: ['job-safety', 'blocks', { param: 'id' }], handler: (c) => jobSafetyService.unblock(c.user!.sub, c.params.id) },
   { method: 'GET', segments: ['employer', 'jobs'], handler: (c) => jobsService.listEmployerJobs(c.user!.sub) },
   { method: 'POST', segments: ['employer', 'jobs'], handler: (c) => jobsService.createJob(c.user!.sub, c.body) },
   { method: 'POST', segments: ['employer', 'jobs', { param: 'id' }, 'invitations'], handler: (c) => jobsService.createJobInvitation(c.user!.sub, c.params.id, c.body) },
@@ -138,6 +143,9 @@ const routes: Route[] = [
   { method: 'PATCH', segments: ['employer', 'applications', { param: 'id' }], handler: (c) => jobsService.updateApplication(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['employer', 'applications', { param: 'id' }, 'messages'], handler: (c) => jobsService.getApplicationMessages(c.user!.sub, c.params.id) },
   { method: 'POST', segments: ['employer', 'applications', { param: 'id' }, 'messages'], handler: (c) => jobsService.sendApplicationMessage(c.user!.sub, c.params.id, c.body) },
+  { method: 'POST', segments: ['employer', 'applications', { param: 'id' }, 'safety-actions'], handler: (c) => jobSafetyService.reportOrBlock(c.user!.sub, { ...c.body, application_id: c.params.id }) },
+  { method: 'GET', segments: ['admin', 'job-safety', 'reports'], roles: ['system_admin'], handler: () => jobSafetyService.listOpenReports() },
+  { method: 'PATCH', segments: ['admin', 'job-safety', 'reports', { param: 'id' }], roles: ['system_admin'], handler: (c) => jobSafetyService.resolveReport(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['marketplace', 'services'], public: true, handler: (c) => marketplaceService.listServices(c.query.get('category') ?? undefined, c.query.get('q') ?? undefined) },
   { method: 'GET', segments: ['marketplace', 'services', { param: 'id' }], public: true, handler: (c) => marketplaceService.getService(c.params.id) },
   { method: 'GET', segments: ['marketplace', 'provider'], handler: (c) => marketplaceService.getMyProvider(c.user!.sub) },

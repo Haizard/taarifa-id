@@ -24,7 +24,7 @@ The current implementation provides the first service-marketplace milestone:
 - Organization admins can create employee member logins, assign an employee to an accepted request, and review assignment/release history. Employees can see jobs assigned to their account, and clients can see the current service team.
 - A marketplace request shares its submitted answers and location; it does not attach saved profile or health data automatically.
 
-This is a foundation, not a full employment marketplace. Job discovery and hiring remain roadmap work below.
+This is a foundation, not a full employment marketplace. The remaining hiring and governance capabilities are described in the roadmap below.
 
 ## Roadmap
 
@@ -128,15 +128,17 @@ Remaining work:
 Implemented foundation:
 
 - Job-seeking visibility is off by default. Adult individual and employee accounts can opt in and choose job categories and locations; their current organization is excluded from candidate search.
-- Verified provider organizations can publish and close job openings with a role, category, location, employment type, description, and requirements.
+- Provider organizations with an active provider profile can publish and close job openings with a role, category, location, employment type, description, and requirements. A platform-level employer verification program remains future work.
 - Workers can browse open jobs, apply, choose which career profile fields and verified work records to share with each application, review application status, and withdraw.
 - Employers can search consenting adult candidates by category/location without seeing contact details or work history, and manage applicants through review, interview, offer, rejection, and hire states.
 - Applicants and the hiring organization can exchange application-scoped in-platform messages. Only those two participants can read or send; withdrawing an application closes the thread for new messages.
 - Employers can invite matching, opted-in adults to an open role. The invitation itself shares no career data; the worker may accept or decline, and chooses any career details to share when accepting. Invites expire after 14 days and pending invites are withdrawn when job-seeking visibility is turned off.
+- Workers can report a listing or block an organization; applicants and employers can report or block each other. Blocks hide the other party from discovery and invitations, revoke shared application career details, and stop messages. Workers and employers can review and undo their own blocks.
+- System admins can review job-safety reports, see the reported message when applicable, and resolve or dismiss each report with an audit-logged decision.
 
 Remaining work:
 
-- Add application reporting/block controls and stronger employer verification/moderation.
+- Add stronger employer verification/moderation.
 - Add age-aware eligibility across all workforce and service reputation flows, not only job discovery.
 - Add explicit selected-employer visibility controls and independent profile export.
 - Add hiring outcome confirmation from both sides before creating verified employment history.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BriefcaseBusiness, MapPin, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { Ban, BriefcaseBusiness, MapPin, MessageSquare, Send, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -14,6 +14,7 @@ type Career = { history: { id: string; position: string; organization_name: stri
 type Application = { id: string; status: string; job_title: string; organization_name: string; location: string; employer_note: string | null };
 type Message = { id: string; body: string; created_at: string; from_you: boolean };
 type Invitation = { id: string; title: string; category: string; location: string; employment_type: string; description: string; organization_name: string; message: string | null; expires_at: string };
+type Block = { id: string; name: string; created_at: string };
 
 export default function JobsPage() {
   const { user } = useAuthStore();
@@ -22,6 +23,7 @@ export default function JobsPage() {
   const jobsQuery = useQuery({ queryKey: ['jobs', user?.sub], queryFn: () => api.get<Job[]>('/jobs'), enabled: !!user });
   const appsQuery = useQuery({ queryKey: ['my-job-applications', user?.sub], queryFn: () => api.get<Application[]>('/jobs/applications'), enabled: !!user });
   const invitesQuery = useQuery({ queryKey: ['job-invitations', user?.sub], queryFn: () => api.get<Invitation[]>('/jobs/invitations'), enabled: !!user });
+  const blocksQuery = useQuery({ queryKey: ['job-safety-blocks', user?.sub], queryFn: () => api.get<Block[]>('/job-safety/blocks'), enabled: !!user });
   const careerQuery = useQuery({ queryKey: ['career-me', user?.sub], queryFn: () => api.get<Career>('/career/me'), enabled: !!user });
   const [enabled, setEnabled] = useState(false);
   const [categories, setCategories] = useState('');
@@ -67,6 +69,21 @@ export default function JobsPage() {
     onSuccess: (_data, variables) => { qc.invalidateQueries({ queryKey: ['job-invitations'] }); qc.invalidateQueries({ queryKey: ['jobs'] }); qc.invalidateQueries({ queryKey: ['my-job-applications'] }); toast.success(variables.action === 'accept' ? 'Invitation accepted. Choose what to share from your application.' : 'Invitation declined'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const safetyAction = useMutation({
+    mutationFn: ({ jobId, action }: { jobId: string; action: 'report' | 'block' }) => api.post(`/jobs/${jobId}/safety-actions`, { action_type: action, reason: action === 'block' ? 'unwanted_contact' : 'misleading_or_inappropriate' }),
+    onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['jobs'] }); qc.invalidateQueries({ queryKey: ['job-safety-blocks'] }); qc.invalidateQueries({ queryKey: ['job-invitations'] }); toast.success(vars.action === 'block' ? 'Organization blocked' : 'Report sent to platform moderators'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const applicationSafetyAction = useMutation({
+    mutationFn: ({ applicationId, action }: { applicationId: string; action: 'report' | 'block' }) => api.post(`/jobs/applications/${applicationId}/safety-actions`, { action_type: action, reason: action === 'block' ? 'unwanted_contact' : 'inappropriate_or_fraudulent' }),
+    onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['my-job-applications'] }); qc.invalidateQueries({ queryKey: ['job-safety-blocks'] }); qc.invalidateQueries({ queryKey: ['job-invitations'] }); toast.success(vars.action === 'block' ? 'Organization blocked' : 'Report sent to platform moderators'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const unblock = useMutation({
+    mutationFn: (id: string) => api.delete(`/job-safety/blocks/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['job-safety-blocks'] }); qc.invalidateQueries({ queryKey: ['jobs'] }); toast.success('Organization unblocked'); },
+    onError: (e: any) => toast.error(e.message),
+  });
   const verified = (careerQuery.data?.history ?? []).filter((record) => record.verification_status === 'verified');
   if (!['individual', 'user'].includes(user?.role ?? '')) return <div className="glass p-6 text-center text-ink-secondary">Job tools are for individual and employee accounts.</div>;
   return <div className="mx-auto max-w-5xl">
@@ -88,10 +105,13 @@ export default function JobsPage() {
         {verified.map((record) => <label key={record.id} className="flex items-center gap-2 text-[12px] text-ink-secondary"><input type="checkbox" checked={(shareHistory[job.id] ?? []).includes(record.id)} onChange={(e) => setShareHistory((s) => ({ ...s, [job.id]: e.target.checked ? [...(s[job.id] ?? []), record.id] : (s[job.id] ?? []).filter((id) => id !== record.id) }))} />Include verified record: {record.position} · {record.organization_name}</label>)}
         <GlassButton disabled={!enabled || apply.isPending} onClick={() => apply.mutate({ jobId: job.id })}>{enabled ? 'Apply to this job' : 'Turn on job seeking to apply'}</GlassButton>
       </div>}
+      <div className="mt-3 flex flex-wrap gap-3 border-t border-glass-border pt-3"><button onClick={() => safetyAction.mutate({ jobId: job.id, action: 'report' })} className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-tertiary"><ShieldAlert size={14} />Report job</button><button onClick={() => safetyAction.mutate({ jobId: job.id, action: 'block' })} className="inline-flex items-center gap-1 text-[11px] font-medium text-accent-danger"><Ban size={14} />Block organization</button></div>
     </article>)}
       {!jobsQuery.isLoading && !jobsQuery.data?.length && <div className="glass p-6 text-center text-[14px] text-ink-secondary"><BriefcaseBusiness className="mx-auto mb-2 text-accent-primary" />No open jobs yet. Check again later.</div>}
     </div>
     <SectionLabel tone="green">My applications</SectionLabel>
-    {appsQuery.data?.length ? <div className="space-y-2">{appsQuery.data.map((app) => <article key={app.id} className="glass p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-semibold text-ink-primary">{app.job_title} · {app.organization_name}</div><div className="text-[12px] text-ink-tertiary">{app.location} · {app.status.replaceAll('_', ' ')}</div>{app.employer_note && <p className="mt-1 text-[12px] text-ink-secondary">Employer update: {app.employer_note}</p>}</div><div className="flex items-center gap-3"><button onClick={() => setMessageApplication(messageApplication === app.id ? '' : app.id)} className="inline-flex items-center gap-1 text-[12px] font-semibold text-accent-primary"><MessageSquare size={15} />{messageApplication === app.id ? 'Hide messages' : 'Message'}</button>{!['withdrawn', 'rejected', 'hired'].includes(app.status) && <button onClick={() => withdraw.mutate(app.id)} disabled={withdraw.isPending} className="text-[12px] font-semibold text-accent-danger">Withdraw</button>}</div></div>{messageApplication === app.id && <div className="mt-3 border-t border-glass-border pt-3"><div className="max-h-64 space-y-2 overflow-y-auto">{messagesQuery.data?.map((message) => <div key={message.id} className={`max-w-[90%] rounded-xl p-3 text-[13px] ${message.from_you ? 'ml-auto bg-accent-primary/10 text-ink-primary' : 'bg-white/70 text-ink-secondary'}`}><p className="whitespace-pre-wrap">{message.body}</p><div className="mt-1 text-[10px] opacity-60">{message.from_you ? 'You' : 'Hiring organization'} · {new Date(message.created_at).toLocaleString()}</div></div>)}</div><form onSubmit={(e) => { e.preventDefault(); sendMessage.mutate(); }} className="mt-3 flex gap-2"><input value={messageBody} onChange={(e) => setMessageBody(e.target.value)} maxLength={5000} placeholder="Write a message" className="min-w-0 flex-1 rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /><button disabled={!messageBody.trim() || sendMessage.isPending} className="rounded-xl bg-accent-primary px-3 text-white disabled:opacity-50"><Send size={16} /></button></form></div>}</article>)}</div> : <div className="glass p-4 text-[13px] text-ink-secondary">Your applications will appear here.</div>}
+    {appsQuery.data?.length ? <div className="space-y-2">{appsQuery.data.map((app) => <article key={app.id} className="glass p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-semibold text-ink-primary">{app.job_title} · {app.organization_name}</div><div className="text-[12px] text-ink-tertiary">{app.location} · {app.status.replaceAll('_', ' ')}</div>{app.employer_note && <p className="mt-1 text-[12px] text-ink-secondary">Employer update: {app.employer_note}</p>}</div><div className="flex items-center gap-3"><button onClick={() => setMessageApplication(messageApplication === app.id ? '' : app.id)} className="inline-flex items-center gap-1 text-[12px] font-semibold text-accent-primary"><MessageSquare size={15} />{messageApplication === app.id ? 'Hide messages' : 'Message'}</button><button title="Report organization" onClick={() => applicationSafetyAction.mutate({ applicationId: app.id, action: 'report' })} className="text-[12px] text-ink-tertiary"><ShieldAlert size={15} /></button><button title="Block organization" onClick={() => applicationSafetyAction.mutate({ applicationId: app.id, action: 'block' })} className="text-[12px] text-accent-danger"><Ban size={15} /></button>{!['withdrawn', 'rejected', 'hired'].includes(app.status) && <button onClick={() => withdraw.mutate(app.id)} disabled={withdraw.isPending} className="text-[12px] font-semibold text-accent-danger">Withdraw</button>}</div></div>{messageApplication === app.id && <div className="mt-3 border-t border-glass-border pt-3"><div className="max-h-64 space-y-2 overflow-y-auto">{messagesQuery.data?.map((message) => <div key={message.id} className={`max-w-[90%] rounded-xl p-3 text-[13px] ${message.from_you ? 'ml-auto bg-accent-primary/10 text-ink-primary' : 'bg-white/70 text-ink-secondary'}`}><p className="whitespace-pre-wrap">{message.body}</p><div className="mt-1 text-[10px] opacity-60">{message.from_you ? 'You' : 'Hiring organization'} · {new Date(message.created_at).toLocaleString()}</div></div>)}</div><form onSubmit={(e) => { e.preventDefault(); sendMessage.mutate(); }} className="mt-3 flex gap-2"><input value={messageBody} onChange={(e) => setMessageBody(e.target.value)} maxLength={5000} placeholder="Write a message" className="min-w-0 flex-1 rounded-xl border border-glass-border bg-white/60 px-3 py-2 text-[13px] text-ink-primary" /><button disabled={!messageBody.trim() || sendMessage.isPending} className="rounded-xl bg-accent-primary px-3 text-white disabled:opacity-50"><Send size={16} /></button></form></div>}</article>)}</div> : <div className="glass p-4 text-[13px] text-ink-secondary">Your applications will appear here.</div>}
+    <SectionLabel tone="yellow">Blocked organizations</SectionLabel>
+    {blocksQuery.data?.length ? <div className="space-y-2">{blocksQuery.data.map((block) => <div key={block.id} className="glass flex items-center justify-between gap-3 p-3"><span className="text-[13px] text-ink-primary">{block.name}</span><button onClick={() => unblock.mutate(block.id)} disabled={unblock.isPending} className="text-[12px] font-semibold text-accent-primary">Unblock</button></div>)}</div> : <div className="glass p-4 text-[13px] text-ink-secondary">Organizations you block will no longer appear in job discovery or invitations.</div>}
   </div>;
 }

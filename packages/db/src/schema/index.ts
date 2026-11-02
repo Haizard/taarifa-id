@@ -551,6 +551,30 @@ export const jobInvitations = pgTable('job_invitations', {
   ...timestamps,
 }, (t) => [uniqueIndex('job_invitations_job_worker_unique').on(t.job_id, t.worker_account_id), index('job_invitations_worker_idx').on(t.worker_account_id)]);
 
+export const jobSafetyActions = pgTable('job_safety_actions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  action_type: varchar('action_type', { length: 12 }).notNull(),
+  reporter_account_id: uuid('reporter_account_id').notNull().references(() => accounts.id),
+  subject_account_id: uuid('subject_account_id').references(() => accounts.id),
+  job_id: uuid('job_id').references(() => jobPostings.id),
+  application_id: uuid('application_id').references(() => jobApplications.id),
+  message_id: uuid('message_id').references(() => jobMessages.id),
+  reason: varchar('reason', { length: 80 }).notNull(),
+  details: text('details'),
+  status: varchar('status', { length: 20 }).notNull().default('open'),
+  resolution_note: text('resolution_note'),
+  resolved_by_account_id: uuid('resolved_by_account_id').references(() => accounts.id),
+  resolved_at: timestamp('resolved_at', { withTimezone: true }),
+  unblocked_at: timestamp('unblocked_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('job_safety_actions_reporter_idx').on(t.reporter_account_id),
+  index('job_safety_actions_subject_idx').on(t.subject_account_id),
+  index('job_safety_actions_open_idx').on(t.created_at),
+  uniqueIndex('job_safety_actions_active_block_unique').on(t.reporter_account_id, t.subject_account_id)
+    .where(sql`${t.action_type} = 'block' and ${t.unblocked_at} is null`),
+]);
+
 export const careerHistory = pgTable('career_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   worker_account_id: uuid('worker_account_id').notNull().references(() => accounts.id),
