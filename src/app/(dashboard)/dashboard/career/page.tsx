@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { BriefcaseBusiness, Link2, ShieldCheck, Unlink } from 'lucide-react';
+import { BriefcaseBusiness, Download, Link2, ShieldCheck, Unlink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Badge, GlassButton, LargeTitleHeader, SectionLabel } from '@/components/ui/GlassCard';
@@ -61,10 +61,21 @@ export default function CareerPage() {
     onSuccess: () => { clear(); router.replace('/login'); toast.success('Your account is now independent. Sign in again to continue.'); },
     onError: (e: any) => toast.error(e.message),
   });
+  const downloadCareerData = () => {
+    if (!data) return;
+    const payload = { exported_at: new Date().toISOString(), profile: data.profile, employment_history: data.history };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'taarifa-career-data.json';
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   return <div className="mx-auto max-w-4xl">
     <LargeTitleHeader title="Career profile" subtitle="Keep your professional profile and verified work history with you. Nothing is visible to employers until you share a temporary link." />
     <div className="mb-6 flex items-start gap-2 rounded-xl bg-accent-primary/5 p-3 text-[13px] text-ink-secondary"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-accent-primary" />Your career details are private by default. Shared links include only this profile and the verified work records you select, and expire automatically.</div>
+    <div className="mb-6"><GlassButton type="button" disabled={!data || isLoading} onClick={downloadCareerData}><span className="flex items-center gap-2"><Download size={16} />Download career data</span></GlassButton><p className="mt-1 text-[11px] text-ink-tertiary">Downloads your profile and employment history as JSON. Active share links and tokens are not included.</p></div>
 
     <SectionLabel tone="lavender">Your profile</SectionLabel>
     <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="glass space-y-3 p-5">

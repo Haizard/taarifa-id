@@ -122,6 +122,7 @@ const routes: Route[] = [
   { method: 'POST', segments: ['career', 'records', { param: 'id' }, 'respond'], handler: (c) => careerService.respondToCareerRecord(c.user!.sub, c.params.id, c.body) },
   { method: 'GET', segments: ['career', 'share', { param: 'token' }], public: true, handler: (c) => careerService.getSharedCareer(c.params.token) },
   { method: 'GET', segments: ['jobs', 'preferences'], handler: (c) => jobsService.getJobPreferences(c.user!.sub) },
+  { method: 'GET', segments: ['jobs', 'employers'], handler: (c) => jobsService.listEligibleEmployers(c.user!.sub) },
   { method: 'PUT', segments: ['jobs', 'preferences'], handler: (c) => jobsService.saveJobPreferences(c.user!.sub, c.body) },
   { method: 'GET', segments: ['jobs'], handler: (c) => jobsService.listJobs(c.user!.sub) },
   { method: 'GET', segments: ['jobs', 'applications'], handler: (c) => jobsService.listMyApplications(c.user!.sub) },

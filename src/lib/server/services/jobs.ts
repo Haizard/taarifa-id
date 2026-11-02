@@ -39,6 +39,19 @@ export async function getJobPreferences(accountId: string) {
   };
 }
 
+export async function listEligibleEmployers(accountId: string) {
+  const { account } = await workerAccount(accountId);
+  const rows = await db.select({ provider: schema.serviceProviders, employer: schema.accounts })
+    .from(schema.serviceProviders).innerJoin(schema.accounts, eq(schema.serviceProviders.account_id, schema.accounts.id))
+    .where(and(eq(schema.serviceProviders.verification_status, 'verified'), eq(schema.accounts.status, 'active'), isNull(schema.accounts.deleted_at)))
+    .orderBy(schema.serviceProviders.display_name);
+  return rows.filter(({ employer }) => employer.id !== account.parent_account_id && employer.id !== accountId)
+    .map(({ provider, employer }) => ({
+      account_id: employer.id, display_name: provider.display_name, category: provider.category,
+      region: provider.region, district: provider.district,
+    }));
+}
+
 export async function saveJobPreferences(accountId: string, dto: any) {
   const { account } = await workerAccount(accountId);
   const current = await db.query.careerProfiles.findFirst({ where: (t, { eq }) => eq(t.account_id, accountId) });

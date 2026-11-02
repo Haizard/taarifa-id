@@ -97,12 +97,13 @@ Implemented foundation:
 - Workers maintain a private career profile with a headline, summary, and skills.
 - Organization admins create dated employment records for their active employee accounts. Each record includes an organization-name snapshot and starts pending worker acknowledgement.
 - Workers acknowledge a record as verified or dispute it with a note; the organization can return a disputed record for worker confirmation or reject it with a reason.
+- Workers can download their profile and employment history as JSON; active share links and tokens are excluded.
 - Workers create purpose-limited share links for selected verified records and optionally their career profile. Links expire after 7, 14, or 30 days and can be revoked; public views omit contact details and client/service data.
 - Managed employee accounts can transition to independent accounts after active assigned work is resolved. Their account and verified work history remain available.
 
 Remaining work:
 
-- Add worker-controlled export/download of career records and a fuller correction history.
+- Add a fuller correction history.
 - Add qualifications, availability, work preferences, and references with the same consent and verification controls.
 - Build structured complaint/review summaries only after appeal and moderation policies are complete.
 - Harden organization membership transitions for multiple concurrent employers and invitations/claimed identities.
@@ -141,7 +142,7 @@ Remaining work:
 
 - Add document uploads, organization identity checks, verification renewal, and a complete reconsideration process for rejected provider requests.
 - Add age and guardian-consent safeguards to future minor-safe school or service assignment categories.
-- Add explicit selected-employer visibility controls and independent profile export.
+- Workers can exclude selected verified employers from passive search and invitations while retaining direct-application access.
 - Add hiring outcome confirmation from both sides before creating verified employment history.
 - Add anti-spam limits and audit logs for searches, views, applications, and contact attempts.
 
