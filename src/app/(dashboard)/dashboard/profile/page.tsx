@@ -172,7 +172,7 @@ function EntityForm({ entity, onSave, entityType }: { entity: any; onSave: (d: a
             <IOSInput label="TIN number" value={form.tin_number ?? ''} onChange={(e) => set('tin_number', e.target.value)} />
           </>
         )}
-        {logoKey && <IOSInput label="Organization logo URL" type="url" value={form[logoKey] ?? ''} onChange={(e) => set(logoKey, e.target.value)} placeholder="https://your-organization.org/logo.png" />}
+        {logoKey && <IOSInput label="Organization logo URL or path" type="text" value={form[logoKey] ?? ''} onChange={(e) => set(logoKey, e.target.value)} placeholder="https://… or /images/providers/logo.svg" />}
         <IOSInput label="Region" value={form.region ?? ''} onChange={(e) => set('region', e.target.value)} />
         <IOSInput label="District" value={form.district ?? ''} onChange={(e) => set('district', e.target.value)} />
         <IOSInput label="Ward" value={form.ward ?? ''} onChange={(e) => set('ward', e.target.value)} />

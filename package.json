@@ -11,6 +11,7 @@
     "db:push": "pnpm --filter @taarifa/db run push",
     "db:seed": "pnpm --filter @taarifa/db run seed",
     "db:demo": "pnpm --filter @taarifa/db run demo",
+    "db:demo:marketplace": "node scripts/seed-marketplace-demo.mjs",
     "db:migrate:production": "node scripts/migrate-production.mjs"
   },
   "dependencies": {
